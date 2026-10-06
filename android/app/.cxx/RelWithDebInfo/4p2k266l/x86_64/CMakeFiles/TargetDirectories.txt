@@ -1,0 +1,2 @@
+/Users/nnd/GitHub/Tempo-Live/android/app/.cxx/RelWithDebInfo/4p2k266l/x86_64/CMakeFiles/edit_cache.dir
+/Users/nnd/GitHub/Tempo-Live/android/app/.cxx/RelWithDebInfo/4p2k266l/x86_64/CMakeFiles/rebuild_cache.dir
