@@ -1,7 +1,6 @@
 import 'package:general/src/core/index.dart';
 import 'package:general/src/features/room/data/model/user_in_room_model.dart';
 import 'package:general/src/features/room/presentation/component/profile/new_profile_body.dart';
-import 'package:general/src/features/room/presentation/component/profile/profile_body.dart';
 import 'package:general/src/features/room/room.dart';
 
 class UserRoomProfile extends StatefulWidget {
@@ -58,7 +57,8 @@ class _UserRoomProfileState extends State<UserRoomProfile> {
     // while the live entry animation and the user's own profile page always
     // read fresh data and looked fine. Always refresh in the background and
     // swap the live data in once it lands, instead of trusting the cache.
-    final fresh = await getUsersByIds([id]).then((map) => map[id]);
+    final fresh =
+        await getUsersByIds([id], forceRefresh: true).then((map) => map[id]);
     if (fresh != null) {
       await UsersCache().setUser(fresh);
       if (mounted) {
@@ -134,18 +134,11 @@ class _UserRoomProfileState extends State<UserRoomProfile> {
   Widget _buildProfileBody(UserInRoomModel userData) {
     final myId = MyDataModel.getInstance().id;
     final isMyProfile = myId != null && myId.toString() == widget.userId;
-    return ConstantsManager.isTheme1
-        ? NewProfileBody(
-            roomData: widget.roomData,
-            userData: userData,
-            userId: widget.userId,
-            isMyProfile: isMyProfile,
-          )
-        : ProfileBody(
-            roomData: widget.roomData,
-            userData: userData,
-            userId: widget.userId,
-            isMyProfile: isMyProfile,
-          );
+    return NewProfileBody(
+      roomData: widget.roomData,
+      userData: userData,
+      userId: widget.userId,
+      isMyProfile: isMyProfile,
+    );
   }
 }

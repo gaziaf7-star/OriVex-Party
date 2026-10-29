@@ -72,36 +72,30 @@ class _Theme2LiveBadgeState extends State<Theme2LiveBadge>
       child: ScaleTransition(
         scale: _scale,
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+          width: 54.w,
+          height: 54.w,
           decoration: BoxDecoration(
-            color: ColorManager.red,
-            borderRadius: BorderRadius.circular(20.r),
-            boxShadow: [
-              BoxShadow(
-                color: ColorManager.red.withValues(alpha: 0.55),
-                blurRadius: 8.r,
-                spreadRadius: 1.r,
-              ),
+            borderRadius: BorderRadius.circular(14.r),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFB6F04A), Color(0xFF45C21E)],
+            ),
+            border: Border.all(color: const Color(0xFFE7FFB0), width: 1.5),
+            boxShadow: const [
+              BoxShadow(color: Color(0x6645C21E), blurRadius: 8, spreadRadius: 1),
             ],
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 6.r,
-                height: 6.r,
-                decoration: const BoxDecoration(
-                  color: ColorManager.white,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              4.wBox,
+              Icon(Icons.equalizer_rounded, color: ColorManager.white, size: 24.sp),
               Text(
-                StringManager.liveTrackBadge.tr(),
+                'LIVE',
                 style: TextStyle(
-                  color: ColorManager.onDark,
-                  fontSize: 10.sp,
-                  fontWeight: FontWeight.w700,
+                  color: ColorManager.white,
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],

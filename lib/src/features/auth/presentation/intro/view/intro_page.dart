@@ -241,94 +241,16 @@ class _IntroPageState extends State<IntroPage> {
 
                         SizedBox(height: buttonGap),
 
-                        BlocBuilder<AuthPlatformBloc, AuthPlatformState>(
-                          bloc: di<AuthPlatformBloc>(),
-                          buildWhen: (prev, curr) =>
-                          prev.requestStateGuest !=
-                              curr.requestStateGuest,
-                          builder: (context, state) {
-                            return _referenceButton(
-                              iconAsset: AssetsManager.userProfileIcon,
-                              label: StringManager.quickLogin.tr(),
-                              height: buttonHeight,
-                              iconSize: 21,
-                              enabled: _isAgreementAccepted,
-                              isLoading: state.requestStateGuest.isLoading,
-                              onTap: () {
-                                di<AuthPlatformBloc>().add(
-                                  SignInGuestEvent(context: context),
-                                );
-                              },
-                            );
-                          },
-                        ),
-
-                        SizedBox(
-                          height: (screenHeight * 0.028).clamp(16.0, 24.0),
-                        ),
-
-                        // "OR" divider, then a plain circular phone-login
-                        // icon below it -- matching the reference design --
-                        // in place of the old full-width gradient CTA.
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Divider(
-                                color: Colors.white.withValues(alpha: 0.45),
-                                thickness: 1,
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 12.w,
-                              ),
-                              child: Text(
-                                'OR',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                  fontSize: 12.5.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Divider(
-                                color: Colors.white.withValues(alpha: 0.45),
-                                thickness: 1,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        SizedBox(
-                          height: (screenHeight * 0.028).clamp(16.0, 24.0),
-                        ),
-
-                        Material(
-                          color: Colors.white.withValues(alpha: 0.16),
-                          shape: const CircleBorder(),
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
-                            onTap: () {
-                              if (!_isAgreementAccepted) {
-                                _showAgreementRequired();
-                                return;
-                              }
-                              context.pushNamedRoute(Routes.login);
-                            },
-                            child: SizedBox(
-                              width: buttonHeight,
-                              height: buttonHeight,
-                              child: Padding(
-                                padding: EdgeInsets.all(buttonHeight * 0.28),
-                                child: Image.asset(
-                                  AssetsManager.introPhoneIcon,
-                                  color: Colors.white,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                          ),
+                        // Phone login (phone number + password) in place of
+                        // Quick Login, on request.
+                        _referenceButton(
+                          iconAsset: AssetsManager.introPhoneIcon,
+                          iconColor: Colors.black,
+                          label: StringManager.signInWithPhone.tr(),
+                          height: buttonHeight,
+                          iconSize: 21,
+                          enabled: _isAgreementAccepted,
+                          onTap: () => context.pushNamedRoute(Routes.login),
                         ),
 
                         SizedBox(
@@ -568,6 +490,7 @@ class _IntroPageState extends State<IntroPage> {
     required double height,
     required bool enabled,
     double iconSize = 22,
+    Color? iconColor,
     bool isLoading = false,
   }) {
     // Stays fully solid white regardless of the agreement toggle (was
@@ -613,6 +536,7 @@ class _IntroPageState extends State<IntroPage> {
                           iconAsset,
                           width: iconSize.w,
                           height: iconSize.w,
+                          color: iconColor,
                           fit: BoxFit.contain,
                         ),
                       ),

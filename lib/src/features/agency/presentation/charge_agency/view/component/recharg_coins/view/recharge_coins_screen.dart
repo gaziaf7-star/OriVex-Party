@@ -236,16 +236,15 @@ class _RechargeCoinsScreenState extends State<RechargeCoinsScreen> {
                                                                       ind]
                                                                   .title ==
                                                               "google_pay") {
+                                                            // findProduct returns null (handled with a
+                                                            // toast) instead of `.single` crashing when
+                                                            // Play has no product for this package.
                                                             di<PurchaseService>().buyProduct(di<
                                                                     PurchaseService>()
-                                                                .result!
-                                                                .productDetails
-                                                                .where((element) =>
-                                                                    element.id
-                                                                        .toString() ==
-                                                                    coin?.id
-                                                                        .toString())
-                                                                .single);
+                                                                .findProduct(coin
+                                                                        ?.id
+                                                                        .toString() ??
+                                                                    ''));
                                                           } else {
                                                             if (!di<BuyCoinsBloc>()
                                                                 .state

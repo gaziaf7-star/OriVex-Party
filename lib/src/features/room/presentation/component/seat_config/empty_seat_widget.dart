@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:general/src/core/index.dart';
+import 'package:general/src/features/room/presentation/component/seat_config/charisma_badge_widget.dart';
 import 'package:general/src/features/room/presentation/component/seat_config/seat_metrics.dart';
 import 'package:general/src/features/room/room.dart';
 
@@ -142,13 +143,23 @@ class _SeatFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      "${index + 1}",
-      textAlign: TextAlign.center,
-      style: context.bodyMedium
-          .copyWith(fontSize: metrics.indexFont)
-          .w400
-          .colorExt(ColorManager.white),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          "${index + 1}",
+          textAlign: TextAlign.center,
+          style: context.bodyMedium
+              .copyWith(fontSize: metrics.indexFont)
+              .w400
+              .colorExt(ColorManager.white),
+        ),
+        CharismaValueLine(
+          userId: '',
+          fontSize: metrics.charismaFont,
+          iconSize: metrics.charismaIcon,
+        ),
+      ],
     );
   }
 }

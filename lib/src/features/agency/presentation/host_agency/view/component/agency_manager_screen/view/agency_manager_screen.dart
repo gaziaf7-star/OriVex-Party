@@ -141,6 +141,16 @@ class _AgencyManagerScreenState extends State<AgencyManagerScreen>
         child: BlocConsumer<InformationAgencyBloc, InformationAgencyState>(
           bloc: _informationAgencyBloc,
           listener: (context, state) {
+            // My own agency was deleted, but my-data still points at it
+            // (backend keeps agency/user_types until it clears them). Send
+            // the user to the agency search instead of a dead error page.
+            if (state.requestState.isError &&
+                widget.agencyId == null &&
+                (state.error ?? '').toLowerCase().contains('not found')) {
+              Navigator.of(context)
+                  .pushReplacementNamed(Routes.searchForAgencyScreen);
+              return;
+            }
             int oldTabsLength = controller?.length ?? 0;
 
             final userStates =

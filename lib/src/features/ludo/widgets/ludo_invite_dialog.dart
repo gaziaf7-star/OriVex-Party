@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:general/src/core/constants/end_points.dart';
 
 import 'ludo_logo_widget.dart';
 
@@ -46,7 +47,7 @@ Future<void> showLudoInvite(
                   radius: 20,
                   backgroundColor: Colors.deepPurple,
                   backgroundImage:
-                      hostAvatar.isEmpty ? null : NetworkImage(hostAvatar),
+                      hostAvatar.isEmpty ? null : NetworkImage(EndPoints.getImage(hostAvatar)),
                   child: hostAvatar.isEmpty
                       ? Text(
                           hostName.isEmpty ? '?' : hostName[0].toUpperCase(),
@@ -94,7 +95,7 @@ Future<void> showLudoInvite(
                       width: 22,
                       height: 16,
                       child: Image.network(
-                        hostFlag,
+                        EndPoints.getImage(hostFlag),
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                       ),

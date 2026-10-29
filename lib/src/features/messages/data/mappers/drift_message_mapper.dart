@@ -57,7 +57,8 @@ class DriftMessageMapper {
   static String _typeOf(db.MessageContentType t) {
     switch (t) {
       case db.MessageContentType.image:
-        return 'image';
+        // The bubble/reply widgets switch on the legacy "img" label.
+        return 'img';
       case db.MessageContentType.video:
         return 'video';
       case db.MessageContentType.audio:

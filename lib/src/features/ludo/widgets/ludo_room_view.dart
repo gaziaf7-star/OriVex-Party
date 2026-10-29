@@ -1,5 +1,6 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:general/src/core/constants/end_points.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../game/game_state.dart';
@@ -524,7 +525,7 @@ class _Avatar extends StatelessWidget {
     );
     if (url.isEmpty) return fallback;
     return Image.network(
-      url,
+      EndPoints.getImage(url),
       fit: BoxFit.cover,
       errorBuilder: (_, __, ___) => fallback,
     );

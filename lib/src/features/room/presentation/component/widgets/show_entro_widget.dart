@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:general/src/core/cache/image_cache_manager.dart';
 import 'package:general/src/core/cache/svga_movie_cache.dart';
+import 'package:general/src/core/widgets/cache/cache_svga_widget.dart';
 import 'package:general/src/core/index.dart';
 import 'package:general/src/features/room/presentation/gifts/controller/gift_controller.dart';
 import 'package:flutter_svga/flutter_svga.dart';
@@ -18,6 +19,15 @@ class ShowEntroWidget extends StatefulWidget {
 
   static ValueNotifier<Map<String, dynamic>?> showEntro =
       ValueNotifier<Map<String, dynamic>?>(null);
+
+  /// The joining user's picture for the `sender_avatar` slot of an SVIP entry
+  /// animation (null when there is no entry user). Safe to pass to every svga
+  /// gift player: movies without that slot simply ignore it.
+  static Map<String, String>? introAvatarImages() {
+    final image = '${showEntro.value?['user_image_intro'] ?? ''}'.trim();
+    if (image.isEmpty) return null;
+    return {'sender_avatar': image};
+  }
 
   @override
   State<ShowEntroWidget> createState() => _ShowEntroWidgetState();
@@ -140,12 +150,17 @@ class _ShowEntroWidgetState extends State<ShowEntroWidget>
       final Map<String, dynamic>? keyMap =
           widget.userIntroData['wappelKeyName'];
 
-      if (keyMap == null || keyMap.isEmpty) {
-        Methods.printLog("⚠️ No key_map provided");
-        return;
+      final Map<String, dynamic> keys = keyMap ?? const {};
+      if (keys.isEmpty) Methods.printLog("⚠️ No key_map provided");
+
+      // The SVIP entry animations name their avatar slot `sender_avatar`; paint
+      // the joining user's picture there even when the wabble's key_map does
+      // not list it (it used to leave the designer's grey placeholder).
+      if ((userImage ?? '').isNotEmpty && !keys.containsKey(kSenderAvatarKey)) {
+        await applySenderAvatar(videoItem, userImage!);
       }
 
-      for (final entry in keyMap.entries) {
+      for (final entry in keys.entries) {
         final String key = entry.key;
         final String type = entry.value;
 

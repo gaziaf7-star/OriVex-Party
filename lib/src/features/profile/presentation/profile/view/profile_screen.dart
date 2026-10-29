@@ -1,4 +1,5 @@
 import 'package:general/src/core/index.dart';
+import 'package:general/src/features/agency/presentation/open_agency_center.dart';
 import 'package:general/src/core/widgets/country_icon.dart';
 import 'package:general/src/core/widgets/id_with_copy.dart';
 import 'package:general/src/features/agency/presentation/charge_agency/view/component/host_withdrawel_screen/bloc/get_setting_manager/get_setting_bloc.dart';
@@ -14,6 +15,8 @@ import 'package:general/src/features/profile/presentation/profile/view/widgets/t
 import 'package:general/src/features/profile/presentation/profile/view/widgets/DashboardWebViewScreen.dart';
 import 'package:general/src/core/widgets/level_container.dart';
 import 'package:general/src/core/widgets/vip_container.dart';
+import 'package:general/src/features/vip/vip.dart'
+    show VipCenterBloc, GetVipCenterEvent, GetVipBagEvent;
 // Role tags (BD / Agent / Seller / Host) shared with the in-room profile,
 // so both read the same `user_types` and cannot disagree.
 
@@ -38,6 +41,21 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  @override
+  void initState() {
+    super.initState();
+    // Warm the SVIP page's data while the user is still on the profile, so
+    // tapping the SVIP card opens a ready page instead of a loader.
+    final vip = di<VipCenterBloc>();
+    if (!vip.state.requestState.isLoaded && !vip.state.requestState.isLoading) {
+      vip.add(const GetVipCenterEvent());
+    }
+    if (!vip.state.requestStateVipBag.isLoaded &&
+        !vip.state.requestStateVipBag.isLoading) {
+      vip.add(const GetVipBagEvent());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BackgroundImgWidget(
@@ -137,15 +155,7 @@ class _NewProfileBody extends StatelessWidget {
         IconModel(
           icon: AssetsManager.theme1ProfileAgency,
           title: StringManager.agency1,
-          onTap: () {
-            if (StringManager.userType[2]! || StringManager.userType[1]!) {
-              navKey.currentContext?.pushNamedRoute(Routes.newAgencyScreen);
-            } else {
-              navKey.currentContext?.pushNamedRoute(
-                Routes.searchForAgencyScreen,
-              );
-            }
-          },
+          onTap: openAgencyCenter,
         ),
       );
     }

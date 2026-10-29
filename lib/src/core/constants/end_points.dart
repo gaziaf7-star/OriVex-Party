@@ -95,7 +95,28 @@ class EndPoints {
   /// Resolves an image reference to a fetchable URL. Safe to call on a value
   /// that is already absolute, so callers no longer need to guess.
   static String getImage(String? image) {
-    return resolveUrl(image, baseUrl: storageURL);
+    return fixStorageUrl(resolveUrl(image, baseUrl: storageURL));
+  }
+
+  /// Uploaded files on the API host are only served under `/storage/`, but
+  /// some references reach the app without it — a relative `profile/x.jpg`
+  /// joined to a storage base that lacks the segment (the cold-start bootstrap
+  /// is the bare domain), or an absolute URL the backend built the same way.
+  /// `https://host/profile/x.jpg` 404s while `https://host/storage/profile/x.jpg`
+  /// works, so on the API host insert the missing segment. Other hosts (an
+  /// external bucket/CDN, game icons) are left untouched.
+  static String fixStorageUrl(String url) {
+    if (url.isEmpty) return url;
+    final uri = Uri.tryParse(url);
+    final apiHost = Uri.tryParse(domainURL)?.host ?? '';
+    if (uri == null || apiHost.isEmpty || uri.host != apiHost) return url;
+    final segments = uri.pathSegments;
+    if (segments.length < 2 || !segments.last.contains('.')) return url;
+    // `uploads/` (e.g. rocket platform images) is served from the web root
+    // and 404s under `/storage/`.
+    const served = {'storage', 'api', 'connection', 'uploads'};
+    if (served.contains(segments.first)) return url;
+    return uri.replace(pathSegments: ['storage', ...segments]).toString();
   }
 
   /// Resolves an absolute or relative URL against [baseUrl] without duplicating

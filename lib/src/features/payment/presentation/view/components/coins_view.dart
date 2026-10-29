@@ -1,6 +1,3 @@
-import 'package:general/src/core/widgets/bottom_dialog.dart';
-import 'package:general/src/features/agency/presentation/charge_agency/view/component/host_withdrawel_screen/view/host_withdrawel_screen.dart';
-import 'package:general/src/features/auth/presentation/splash/config_app/config_app_bloc.dart';
 import 'package:general/src/features/payment/presentation/bloc/fetch_coins/fetch_coins_event.dart';
 import 'package:general/src/features/payment/presentation/view/in_app_purchases.dart';
 import 'package:general/src/features/profile/presentation/coins/bloc/my_store_bloc/my_store_bloc.dart';
@@ -11,6 +8,7 @@ import '../../bloc/buy_coins_bloc/buy_coins_bloc.dart';
 import '../../bloc/buy_coins_bloc/buy_coins_event.dart';
 import '../../bloc/fetch_coins/fetch_coins_bloc.dart';
 import '../../bloc/fetch_coins/fetch_coins_state.dart';
+import 'coin_sellers_section.dart';
 
 class CoinsView extends StatefulWidget {
   const CoinsView({super.key});
@@ -26,7 +24,13 @@ class _CoinsViewState extends State<CoinsView> {
       bloc: di<FetchCoinsBloc>(),
       buildWhen: (prev, curr) =>
       prev.reqState != curr.reqState || prev.data != curr.data,
-      builder: (context, state) {
+      builder: (context, rawState) {
+        // Only Google Play recharge here; coin sellers are listed below it.
+        final state = rawState.copyWith(
+          data: rawState.data
+              ?.where((g) => g.title == 'google_pay')
+              .toList(),
+        );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -61,59 +65,6 @@ class _CoinsViewState extends State<CoinsView> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: context.paddingSymmetric(horizontal: 18, vertical: 10),
                 children: [
-                  if (di<ConfigAppBloc>().state.config?.isShowChargeAgencies !=
-                      false)
-                    Container(
-                      decoration: BoxDecoration(
-                        color: ColorManager.white,
-                        borderRadius: 12.radius,
-                        border: Border.all(
-                            color: ColorManager.grey2.withValues(alpha: 0.3)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: ColorManager.black.withValues(alpha: 0.05),
-                            blurRadius: 8.r,
-                            offset: Offset(0, 2.h),
-                          ),
-                        ],
-                      ),
-                      margin: context.paddingSymmetric(vertical: 5),
-                      padding:
-                      context.paddingSymmetric(vertical: 8, horizontal: 18),
-                      child: GestureDetector(
-                        onTap: () {
-                          bottomDailog(
-                            context: context,
-                            widget: const HostWithdrawelScreen(
-                              param: CoinsScreenParam(
-                                stopTransferButton: true,
-                                isFromCoinsScreen: true,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Row(
-                          children: [
-                            Image.asset(
-                              AssetsManager.coinsVip,
-                              width: 40.w,
-                              height: 40.h,
-                            ),
-                            15.wBox,
-                            TextWidget(
-                              StringManager.shippingFromTheAgency.tr(),
-                              style: context.bodyMedium.bold
-                                  .colorExt(ColorManager.black),
-                            ),
-                            const Spacer(),
-                            Icon(
-                              Icons.keyboard_arrow_down_outlined,
-                              color: ColorManager.black,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                   HandlingDataWidget(
                     isNeedLoadingWidget: true,
                     reqState: state.reqState,
@@ -249,19 +200,15 @@ class _CoinsViewState extends State<CoinsView> {
                                                         di<PurchaseService>()
                                                             .result !=
                                                             null) {
-                                                      final matches = di<
+                                                      final product = di<
                                                           PurchaseService>()
-                                                          .result!
-                                                          .productDetails
-                                                          .where((element) =>
-                                                      element.id
-                                                          .toString() ==
-                                                          coin?.id
-                                                              .toString())
-                                                          ;
+                                                          .findProduct(coin
+                                                              ?.id
+                                                              .toString() ??
+                                                          '');
                                                       // `.single` threw "Bad state: No element" when the store has no
                                                       // product for this package.
-                                                      if (matches.isEmpty) {
+                                                      if (product == null) {
                                                         Methods.showToast(
                                                           context,
                                                           message: 'This package is not available right now',
@@ -269,7 +216,7 @@ class _CoinsViewState extends State<CoinsView> {
                                                         );
                                                         return;
                                                       }
-                                                      di<PurchaseService>().buyProduct(matches.first);
+                                                      di<PurchaseService>().buyProduct(product);
                                                     } else {
                                                       if (!di<BuyCoinsBloc>()
                                                           .state
@@ -316,6 +263,7 @@ class _CoinsViewState extends State<CoinsView> {
                       ),
                     ),
                   ),
+                  const CoinSellersSection(),
                 ],
               ),
             ),

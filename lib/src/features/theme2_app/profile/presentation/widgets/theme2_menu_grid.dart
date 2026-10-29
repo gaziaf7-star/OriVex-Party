@@ -1,4 +1,5 @@
 import 'package:general/src/core/index.dart';
+import 'package:general/src/features/agency/presentation/open_agency_center.dart';
 import 'package:general/src/features/auth/auth.dart';
 import 'package:general/src/features/home/presentation/daily_prize/bloc/daily_prizes_bloc.dart';
 import 'package:general/src/features/home/presentation/daily_prize/view/daily_prize_dialog.dart';
@@ -218,15 +219,7 @@ class Theme2MenuGrid extends StatelessWidget {
         _MenuItemData(
           icon: AssetsManager.icMeAgency,
           label: StringManager.agency1.tr(),
-          onTap: () {
-            if (StringManager.userType[2]! || StringManager.userType[1]!) {
-              navKey.currentContext?.pushNamedRoute(Routes.newAgencyScreen);
-            } else {
-              navKey.currentContext?.pushNamedRoute(
-                Routes.searchForAgencyScreen,
-              );
-            }
-          },
+          onTap: openAgencyCenter,
         ),
       );
     }

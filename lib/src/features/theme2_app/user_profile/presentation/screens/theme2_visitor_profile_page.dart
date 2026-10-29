@@ -370,8 +370,7 @@ class _Theme2VisitorProfilePageState extends State<Theme2VisitorProfilePage>
                                   for (int i = 0; i < labels.length; i++) ...[
                                     if (i != 0) 8.wBox,
                                     SizedBox(
-                                      // Widened on request.
-                                      width: 108.w,
+                                      width: 104.w,
                                       child: Padding(
                                         // Bottom margin, on request.
                                         padding: EdgeInsets.only(bottom: 6.h),
@@ -494,13 +493,7 @@ class _Theme2StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
     return Container(
       height: minExtent,
       // A soft gradient wash instead of flat white, on request.
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [Color(0xFFFDF2FF), Color(0xFFF3F0FF), Color(0xFFEFF7FF)],
-        ),
-      ),
+      color: ColorManager.white,
       padding: EdgeInsets.only(top: isPinned ? _topGap.h : 0),
       child: tabBar,
     );
@@ -511,10 +504,8 @@ class _Theme2StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.isPinned != isPinned || oldDelegate.tabBar != tabBar;
 }
 
-/// Same gradient/colors as CpTabPill (the CP page's tab pill), but tuned
-/// separately for this screen on request: no shadow/glow, and a thicker
-/// border. Kept as its own widget instead of adding params to CpTabPill so
-/// the CP page's own tabs (which DO want the glow) are unaffected.
+/// Plain text tab: the selected one is bold and dark with a short underline,
+/// the others are light grey.
 class _ProfileTabPill extends StatelessWidget {
   const _ProfileTabPill({
     required this.text,
@@ -530,37 +521,30 @@ class _ProfileTabPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        height: 46.h,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: selected
-                ? const [Color(0xFFFF8AC2), Color(0xFFAC55E7)]
-                : const [Color(0xFF4FC3FF), Color(0xFF3556E8)],
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: selected ? 20.sp : 17.sp,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+              color: selected ? ColorManager.textPrimary : ColorManager.grey,
+            ),
           ),
-          border: Border.all(
-            color: selected
-                ? const Color(0xE6FFD98A)
-                : const Color(0x99FFD98A),
-            width: selected ? 3.4 : 2.8,
+          4.hBox,
+          Container(
+            width: 22.w,
+            height: 3.h,
+            decoration: BoxDecoration(
+              color: selected ? ColorManager.textPrimary : Colors.transparent,
+              borderRadius: BorderRadius.circular(3.r),
+            ),
           ),
-        ),
-        child: Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: context.bodySmall
-              .copyWith(fontSize: 14)
-              .colorExt(selected ? Colors.white : Colors.white70)
-              .copyWith(
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-              ),
-        ),
+        ],
       ),
     );
   }
@@ -850,7 +834,7 @@ class _GiftTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+      padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 12.h),
       child: Theme2VisitorHonorTab(
         userBadgesBloc: userBadgesBloc,
         getBadgesBloc: getBadgesBloc,

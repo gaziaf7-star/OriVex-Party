@@ -8,7 +8,7 @@ description: "General App from UTD Software Solutions Company."
 publish_to: "none"
 
 # Version and build number
-version: 1.0.5+6
+version: 1.0.15+16
 
 environment:
   # Dart SDK version constraint
@@ -241,7 +241,13 @@ dependencies:
   app_links: ^6.4.1
 
   # In-app purchases
-  in_app_purchase: ^3.1.10
+  in_app_purchase: ^3.3.1
+  # Direct dependency: needed to consume a coin purchase only after the backend
+  # credited it. Must be 0.5.x (Play Billing 8): android/app/build.gradle pins
+  # billing:8.0.0, and the 0.4.x plugin (built for Billing 7) never receives
+  # the product-query callback under Billing 8, so every purchase failed with
+  # "Google Play did not respond".
+  in_app_purchase_android: ^0.5.3
 
   # Detect file MIME type
   mime: ^2.0.0

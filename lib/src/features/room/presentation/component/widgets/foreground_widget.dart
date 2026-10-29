@@ -398,6 +398,7 @@ class _ForegroundWidgetState extends State<ForegroundWidget>
             // imperative show/hide wiring needed here.
             const RocketLaunchOverlay(),
             const RocketLaunchBanner(),
+            const RocketRewardDialog(),
             if (widget.isAudioRoom &&
                 RoomData.instance.utdController != null) ...[
               ValueListenableBuilder<UTDRoomMode>(
@@ -855,8 +856,8 @@ class _ForegroundWidgetState extends State<ForegroundWidget>
                           // rotating slide in the same carousel.
                           10.hBox,
                           SizedBox(
-                            height: 75,
-                            width: 75,
+                            height: 92,
+                            width: 92,
                             child: RepaintBoundary(
                               child: ClipRRect(
                                 borderRadius: 12.radius,
@@ -1113,9 +1114,10 @@ class _ForegroundWidgetState extends State<ForegroundWidget>
   }
 }
 
-/// While a Ludo game is active, or the room is in the 30-seat mode, the right-hand icon rail (boom, apply, games,
-/// room support, rocket, lucky box) collapses behind a single toggle at the
-/// bottom, so the Ludo board keeps the screen. Outside Ludo it is a no-op.
+/// While a Ludo game is active, cinema mode is on, or the room is in the
+/// 30-seat mode, the right-hand icon rail (boom, apply, games, room support,
+/// rocket, lucky box) collapses behind a single toggle at the bottom, so the
+/// Ludo board / the video keeps the screen. Otherwise it is a no-op.
 class _LudoRailGate extends StatefulWidget {
   final Widget child;
 
@@ -1136,12 +1138,14 @@ class _LudoRailGateState extends State<_LudoRailGate> {
     return ListenableBuilder(
       listenable: Listenable.merge([
         LudoRoomController.instance.activeNotifier,
+        YouTubeController.isCinemaMode,
         if (modeNotifier != null) modeNotifier,
       ]),
       builder: (context, _) {
         final ludoOn = LudoRoomController.instance.activeNotifier.value;
+        final cinemaOn = YouTubeController.isCinemaMode.value;
         final denseSeats = (modeNotifier?.value.seatCount ?? 0) >= 30;
-        if (!ludoOn && !denseSeats) return widget.child;
+        if (!ludoOn && !cinemaOn && !denseSeats) return widget.child;
         return Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.end,
@@ -1307,6 +1311,7 @@ class _GiftDisplayStack extends StatelessWidget {
                       ? _FamousGiftMinimizeToggle(
                     child: (isMinimize) => CacheSvgaWidget(
                       url: EndPoints.getImage(state.gift),
+                    dynamicImageUrls: ShowEntroWidget.introAvatarImages(),
                       height: isMinimize
                           ? (ScreenUtil().screenWidth / 1.15).h
                           : ScreenUtil().screenHeight,
@@ -1318,6 +1323,7 @@ class _GiftDisplayStack extends StatelessWidget {
                   )
                       : CacheSvgaWidget(
                     url: EndPoints.getImage(state.gift),
+                    dynamicImageUrls: ShowEntroWidget.introAvatarImages(),
                     isShowGift: true,
                   ),
                 );

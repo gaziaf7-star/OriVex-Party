@@ -151,7 +151,11 @@ class UTDMediaController {
           voiceIsolation: false,
           typingNoiseDetection: false,
         )
-      : const AudioCaptureOptions();
+      // Voice mode: WebRTC's echo cancellation, noise suppression, auto gain,
+      // voice isolation and typing-noise detection are on by default; the
+      // high-pass filter is not, so add it to cut low rumble (fan, AC,
+      // traffic, desk knocks) under the voice.
+      : const AudioCaptureOptions(highPassFilter: true);
 
   /// Subscribe to LiveKit mute/unmute events for the local mic.
   ///

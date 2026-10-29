@@ -572,6 +572,9 @@ class StringManager {
   // UTD-Stream Engine mute feature
   static const String userMuted = "User muted";
   static const String userUnmuted = "User unmuted";
+  static const String mutedByModerator =
+      "You were muted by the room owner or an admin";
+  static const String unmutedByModerator = "You can speak again";
   static const String somethingWrong = "Something Wrong";
   static const String areYouSureBlock =
       "Are you sure you want to block this Person?";

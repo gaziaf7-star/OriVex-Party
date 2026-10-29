@@ -440,7 +440,7 @@ class LiveRoomData {
       };
       sendLiveRoomData(data: entroData);
 
-      if (me.roomEffects?.showEntring == true) {
+      if (me.roomEffects?.showEntring ?? true) {
         GiftController().userEntro({
           "messageContent": entroData,
         }, GiftController().userIntroData);

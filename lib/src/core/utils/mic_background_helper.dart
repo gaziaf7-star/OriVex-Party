@@ -1,4 +1,5 @@
 import 'package:general/src/core/index.dart';
+import 'package:general/src/features/room/presentation/component/profile/component/utd_mute_helper.dart';
 import 'package:general/src/features/room/room.dart';
 
 /// Manages microphone background behavior preferences.
@@ -120,7 +121,7 @@ class MicBackgroundHelper {
     final controller = RoomData.instance.utdController;
     if (controller == null) return;
 
-    if (!shouldMuteMicInBackground) {
+    if (!shouldMuteMicInBackground && !ModeratorMute.instance.isMeLocked) {
       controller.mediaController.setMicrophoneEnabled(true);
     }
   }

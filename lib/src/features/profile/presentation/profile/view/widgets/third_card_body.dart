@@ -1,4 +1,5 @@
 import 'package:general/src/core/index.dart';
+import 'package:general/src/features/agency/presentation/open_agency_center.dart';
 
 import 'package:general/src/features/home/presentation/home/bloc/fetch_my_room_data_manager/fetch_my_room_data_bloc.dart';
 import 'package:general/src/features/profile/presentation/coin_seller/view/coin_seller_screen.dart';
@@ -116,13 +117,7 @@ class ThirdCardBody extends StatelessWidget {
               gradientColors: _kTileGradient,
               size: 32,
               title: StringManager.agencyCenter.tr(),
-              onTap: () {
-                if (StringManager.userType[2]! || StringManager.userType[1]!) {
-                  Navigator.pushNamed(context, Routes.newAgencyScreen);
-                } else {
-                  Navigator.pushNamed(context, Routes.searchForAgencyScreen);
-                }
-              },
+              onTap: openAgencyCenter,
             ),
           _MenuIconModel(
             image: 'assets/icons/mall_shopping.png',

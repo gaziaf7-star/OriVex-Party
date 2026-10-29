@@ -77,6 +77,10 @@ class ChooseModeRoom extends StatelessWidget {
                             seatMode: controller.seatController.seatMode.value,
                             modeId: mode.id,
                           );
+                          if (ok) {
+                            // Remember the layout so the room reopens in it.
+                            persistRoomMode(mode.id);
+                          }
                           if (!ok) {
                             // Used to fail silently; show why.
                             final ctx = navKey.currentContext;

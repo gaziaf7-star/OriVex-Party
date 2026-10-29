@@ -1,3 +1,4 @@
+import 'package:general/src/core/widgets/show_svga.dart';
 import 'package:general/src/features/home/presentation/home/view/widgets/lock_pk_icon.dart';
 import '../../../../../../core/index.dart';
 import '../../../../../../core/widgets/on_multiable_tab.dart';
@@ -223,11 +224,16 @@ class RoomCardBody extends StatelessWidget {
         // IgnorePointer instead wraps just the Image, inside the Positioned,
         // so the ornate art (which has its own transparent center) never
         // steals the card's tap target.
-        if (isShowSVGA)
+        // Top 1/2/3 cards get their own animated frame (on request,
+        // replacing the old static ornate frame).
+        if (isShowSVGA &&
+            rank != null &&
+            rank! >= 1 &&
+            rank! <= AssetsManager.roomCardTopFrames.length)
           Positioned.fill(
             child: IgnorePointer(
-              child: Image.asset(
-                AssetsManager.theme1RoomCardFrame,
+              child: ShowSVGA(
+                svgaAssetPath: AssetsManager.roomCardTopFrames[rank! - 1],
                 fit: BoxFit.fill,
               ),
             ),

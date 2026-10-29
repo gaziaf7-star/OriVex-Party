@@ -88,7 +88,7 @@ class _ShowHostsAgencyState extends State<ShowHostsAgency> {
                             StringManager.userType[2]! ||
                             StringManager.userType[6]!)))
                       Positioned(
-                        bottom: 10.h,
+                        bottom: 10.h + MediaQuery.viewPaddingOf(context).bottom,
                         left: 0,
                         right: 0,
                         child: _buildJoinButton(
@@ -134,8 +134,11 @@ class _ShowHostsAgencyState extends State<ShowHostsAgency> {
                   if ((!(StringManager.userType[1]! ||
                       StringManager.userType[2]! ||
                       StringManager.userType[6]!)))
+                    // Offset by the system navigation bar: the body draws
+                    // behind it on edge-to-edge devices, which hid the button
+                    // under the 3-button bar on some phones.
                     Positioned(
-                      bottom: 10.h,
+                      bottom: 10.h + MediaQuery.viewPaddingOf(context).bottom,
                       left: 0,
                       right: 0,
                       child: _buildJoinButton(
@@ -311,7 +314,8 @@ class _ShowHostsAgencyState extends State<ShowHostsAgency> {
                   : [],
             ),
           ],
-          30.hBox,
+          // Room to scroll the last rows clear of the floating Join button.
+          70.hBox,
         ],
       ),
     );

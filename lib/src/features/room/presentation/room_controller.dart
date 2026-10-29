@@ -1,5 +1,7 @@
+import 'package:general/src/features/room/presentation/component/buttons/noise_button.dart';
 import 'dart:async';
 import 'package:general/src/features/ludo/ludo_room_controller.dart';
+import 'package:general/src/features/room/presentation/component/profile/component/utd_mute_helper.dart';
 import 'package:general/src/core/index.dart';
 import 'package:general/src/core/services/join_timeline.dart';
 import 'package:general/src/core/utils/mic_background_helper.dart';
@@ -134,8 +136,11 @@ class RoomData {
       _utdControllerNotifier;
 
   UTDRoomController? get utdController => _utdControllerNotifier.value;
-  set utdController(UTDRoomController? value) =>
-      _utdControllerNotifier.value = value;
+  set utdController(UTDRoomController? value) {
+    // Load the user's saved Noise choice before the mic gets captured.
+    if (value != null) NoiseReductionPrefs.load();
+    _utdControllerNotifier.value = value;
+  }
 
   UTDChatController? get chatController => utdController?.chatController;
 
@@ -232,7 +237,11 @@ class RoomData {
   /// duplicate dispatch.
   bool _enterRoomDispatchedAtTap = false;
 
-  void markEnterRoomDispatchedAtTap() => _enterRoomDispatchedAtTap = true;
+  void markEnterRoomDispatchedAtTap() {
+    _enterRoomDispatchedAtTap = true;
+    // A fresh entry attempt starts: allow its join message / entry effect once.
+    _enterSuccessHandledKey = null;
+  }
 
   /// Reads AND clears the tap-dispatch flag.
   bool takeEnterRoomDispatchedAtTap() {
@@ -505,6 +514,7 @@ class RoomData {
     _adminsCompleter = null;
     final oldController = utdController;
     utdController = null;
+    ModeratorMute.instance.detach();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       oldController?.dispose();
     });
@@ -807,7 +817,16 @@ void kicKoutMember(
 // User data fetching (unchanged)
 // ---------------------------------------------------------------------------
 
-Future<Map<int, UserInRoomModel>> getUsersByIds(List<int> userIds) async {
+/// Resolves room users from the Hive cache, fetching only the misses from the
+/// backend. [forceRefresh] fetches every id from the backend (falling back to
+/// the cache only if that fails): the cache never expires, so without it a
+/// phone keeps whatever a user looked like when it first saw them — e.g. a
+/// guest's default "Guest…" name and empty avatar long after they set up
+/// their profile.
+Future<Map<int, UserInRoomModel>> getUsersByIds(
+  List<int> userIds, {
+  bool forceRefresh = false,
+}) async {
   final Map<int, UserInRoomModel> result = {};
   final remainingIds = <int>[];
 
@@ -815,7 +834,8 @@ Future<Map<int, UserInRoomModel>> getUsersByIds(List<int> userIds) async {
     final cachedUser = UsersCache().getUser(id);
     if (cachedUser != null) {
       result[id] = cachedUser;
-    } else {
+    }
+    if (cachedUser == null || forceRefresh) {
       remainingIds.add(id);
     }
   }
@@ -868,7 +888,16 @@ Future<Map<int, UserInRoomModel>> getUsersByIds(List<int> userIds) async {
 // Room entry success — replaces Zego with UTD Kit
 // ---------------------------------------------------------------------------
 
+/// Room id whose "joined" side effects (join message + entry effect) already
+/// ran this session. More than one ForegroundWidget can be mounted for the same
+/// room and each one calls [onEnterRoomSuccess] when the engine connects, which
+/// announced the join (and replayed the entry effect) twice.
+String? _enterSuccessHandledKey;
+
 void onEnterRoomSuccess() {
+  final handledKey = '${RoomData.instance.roomOrNull?.id}';
+  if (_enterSuccessHandledKey == handledKey) return;
+  _enterSuccessHandledKey = handledKey;
   GiftController().normalGiftsToShow.clear();
   // Fetch bad words from server when entering a room
   _fetchBadWords();
@@ -910,7 +939,10 @@ void onEnterRoomSuccess() {
     };
     sendRoomData(data: entroData);
 
-    if (MyDataModel.getInstance().roomEffects?.showEntring == true) {
+    // Same default as other users' entries (user_message_handler): show
+    // unless the user explicitly turned entry effects off. `== true` hid the
+    // user's own entry whenever the room-effects setting was never loaded.
+    if (MyDataModel.getInstance().roomEffects?.showEntring ?? true) {
       GiftController().userEntro({
         "messageContent": entroData,
       }, GiftController().userIntroData);
@@ -1002,6 +1034,8 @@ final Set<int> _pendingUserFetches = {};
 /// stale IDs from blocking fetches in the next room session.
 void clearPendingUserFetches() {
   _pendingUserFetches.clear();
+  // Left the room: the next entry may announce itself again.
+  _enterSuccessHandledKey = null;
 }
 
 /// Called when a participant joins the room.
@@ -1066,7 +1100,8 @@ void onUserJoined(Participant participant) async {
 
   _pendingUserFetches.addAll(userIds);
   try {
-    final fetchedUsers = await getUsersByIds(userIds);
+    // A join is the moment to replace any stale cached profile.
+    final fetchedUsers = await getUsersByIds(userIds, forceRefresh: true);
 
     for (final entry in fetchedUsers.entries) {
       final uId = entry.value.id ?? 0;
@@ -1284,15 +1319,68 @@ void loadSecondaryData({required String roomId, required String? userCoins}) {
 
   Future.delayed(const Duration(seconds: 5), () {
     di<CharismaBloc>().add(GetCharismaExtraDataEvent(roomId: roomId));
+    _autoStartCharisma(roomId);
   });
 
   // Admin membership is seeded from the engine (see RoomData.wireRoleSync),
   // not from the app-backend `room.admins` list.
 }
 
+/// Hive key set when the owner turns charisma OFF by hand in this room, so
+/// [_autoStartCharisma] does not switch it back on at the next entry.
+String charismaOffKey(String roomId) => 'charisma_off_$roomId';
+
+/// Charisma (gift coins under each seat) is on by default: when the owner
+/// opens their room and it is off, turn it on -- unless the owner switched
+/// it off themselves, or PK is running (charisma can't start then). YouTube
+/// mode is fine -- the two run together.
+void _autoStartCharisma(String roomId) {
+  final room = RoomData.instance.roomOrNull;
+  if (room == null || room.id?.toString() != roomId) return; // left the room
+  if (room.ownerId != MyDataModel.getInstance().id) return;
+  if (RoomData.instance.isCharismaVisible.value == true) return;
+  if (PkController.isPK.value || PkController.showPK.value) return;
+  final ownerTurnedOff = HiveManager()
+          .getData<bool>(KeysManager.USER_BOX, charismaOffKey(roomId)) ??
+      false;
+  if (ownerTurnedOff) return;
+  di<CharismaBloc>().add(StartCharismaEvent(roomId: roomId));
+}
+
 // ---------------------------------------------------------------------------
 // Room mode change — backend handles via _mode_change event
 // ---------------------------------------------------------------------------
+
+/// Remembers the audio room's seat layout on this device.
+///
+/// When the OWNER opens the room, the join sends the layout to the media
+/// server, and it came from the backend's `room_mode`, which a layout change
+/// never updates (this server has no `change_room_mode` endpoint -- it
+/// answers 404). So a room left with 30 seats was reset to 9 the moment the
+/// owner came back. The owner's own last choice is used instead (see
+/// [roomLayoutForJoin]). Cinema/YouTube (5) is remembered too: the room
+/// reopens in YouTube mode and the owner picks a new video.
+Future<void> persistRoomMode(String? modeId) async {
+  if (modeId == null) return;
+  final roomId = RoomData.instance.room.id?.toString();
+  if (roomId == null || roomId.isEmpty) return;
+  RoomData.instance.room.mode = modeId;
+  await HiveManager().saveData<String>(
+      KeysManager.USER_BOX, 'room_layout_$roomId', modeId);
+}
+
+/// Seat layout to open the room with: for the owner, the layout they last
+/// chose for this room on this device; otherwise the backend's `room_mode`.
+String roomLayoutForJoin() {
+  final room = RoomData.instance.room;
+  final fallback = room.mode ?? '3';
+  final isOwner = room.ownerId == MyDataModel.getInstance().id;
+  final roomId = room.id?.toString();
+  if (!isOwner || roomId == null || roomId.isEmpty) return fallback;
+  return HiveManager().getData<String>(
+          KeysManager.USER_BOX, 'room_layout_$roomId') ??
+      fallback;
+}
 
 void handleRoomModeChangeNew({required String mode_id}) {
   RoomData.instance.room.mode = mode_id;

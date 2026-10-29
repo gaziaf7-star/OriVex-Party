@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:general/src/core/index.dart';
+import 'package:general/src/features/room/presentation/component/seat_config/charisma_badge_widget.dart';
 import 'package:general/src/features/room/presentation/component/seat_config/seat_metrics.dart';
 
 class LockedSeatWidget extends StatelessWidget {
@@ -52,6 +53,11 @@ class LockedSeatWidget extends StatelessWidget {
               .copyWith(fontSize: m.indexFont)
               .w400
               .colorExt(ColorManager.white),
+        ),
+        CharismaValueLine(
+          userId: '',
+          fontSize: m.charismaFont,
+          iconSize: m.charismaIcon,
         ),
       ],
     );

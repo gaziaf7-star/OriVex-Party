@@ -7,6 +7,7 @@ import 'package:general/src/features/auth/domain/entities/user_entity.dart';
 import 'package:general/src/features/cp/presentation/cp_store/bloc/cp_profile_bloc/cp_profile_bloc.dart';
 import 'package:general/src/features/profile/presentation/profile/view/page/user_profile/bloc/get_user_support/get_user_support_bloc.dart';
 import 'package:general/src/features/profile/presentation/profile/view/page/user_profile/bloc/get_user_support/get_user_support_state.dart';
+import 'package:general/src/features/theme2_app/user_profile/presentation/widgets/profile_frame_painter.dart';
 import 'package:general/src/features/theme2_app/user_profile/presentation/widgets/theme2_visitor_cp_card.dart';
 
 /// Family + CP + Friend + Agency + Supporters section, in the reference
@@ -41,7 +42,7 @@ class Theme2VisitorRelationTab extends StatelessWidget {
             title: StringManager.agency1.tr(),
             color: ColorManager.primary,
           ),
-          8.hBox,
+          6.hBox,
           _RelationInfoCard(
             name: user!.myAgency!.name ?? '',
             image: user!.myAgency!.img ?? '',
@@ -65,7 +66,7 @@ class Theme2VisitorRelationTab extends StatelessWidget {
               );
             },
           ),
-          16.hBox,
+          10.hBox,
         ],
 
         // Shipping Agency section
@@ -75,7 +76,7 @@ class Theme2VisitorRelationTab extends StatelessWidget {
             title: StringManager.chargeAgency.tr(),
             color: ColorManager.primary,
           ),
-          8.hBox,
+          6.hBox,
           _RelationInfoCard(
             name: user!.myShippingAgency!.name ?? '',
             image: user!.myShippingAgency!.img ?? '',
@@ -101,7 +102,7 @@ class Theme2VisitorRelationTab extends StatelessWidget {
               );
             },
           ),
-          16.hBox,
+          10.hBox,
         ],
 
         // Family section — explicit empty state when the user has not
@@ -111,7 +112,7 @@ class Theme2VisitorRelationTab extends StatelessWidget {
           title: StringManager.family.tr(),
           color: ColorManager.primary,
         ),
-        8.hBox,
+        6.hBox,
         if (user?.familyData != null)
           _RelationInfoCard(
             name: user!.familyData!.name ?? '',
@@ -134,14 +135,14 @@ class Theme2VisitorRelationTab extends StatelessWidget {
           )
         else
           _EmptyRow(label: StringManager.noFamilys.tr()),
-        16.hBox,
+        10.hBox,
 
         // CP section — exactly as it was before.
         _SectionTitle(
           title: StringManager.cP.tr(),
           color: ColorManager.primary,
         ),
-        8.hBox,
+        6.hBox,
         Theme2VisitorCpCard(
           // Matches exactly how this was wired before this section was
           // briefly removed and restored.
@@ -149,32 +150,14 @@ class Theme2VisitorRelationTab extends StatelessWidget {
           userEntity: user ?? const UserEntity(),
           cpProfileBloc: cpProfileBloc,
         ),
-        16.hBox,
-
-        // Friend section — count only; the drill-down list (Routes.
-        // friendFollowing) is always built around the SIGNED-IN user's own
-        // data, so it only makes sense to open it from your own profile.
-        _SectionTitle(
-          title: StringManager.friends.tr(),
-          color: ColorManager.primary,
-        ),
-        8.hBox,
-        _FriendRow(
-          count: '${user?.numberOfFriends ?? 0}',
-          isMyProfile: isMyProfile,
-          onTap: isMyProfile
-              ? () => Navigator.pushNamed(context, Routes.friendFollowing,
-              arguments: 2)
-              : null,
-        ),
-        16.hBox,
+        10.hBox,
 
         // Supporters section
         _SectionTitle(
           title: StringManager.supporters.tr(),
           color: ColorManager.primary,
         ),
-        8.hBox,
+        6.hBox,
         BlocBuilder<GetSupporterBloc, GetUserSupporterState>(
           bloc: getSupporterBloc,
           buildWhen: (prev, curr) => prev.topSupport != curr.topSupport,
@@ -316,54 +299,6 @@ class _EmptyRow extends StatelessWidget {
 /// Friend count row with a chevron — tappable (into Followers/Following/
 /// Friends/Visitors, on the Friends tab) only on your own profile, since
 /// that screen is always built around the signed-in user's own data.
-class _FriendRow extends StatelessWidget {
-  final String count;
-  final bool isMyProfile;
-  final VoidCallback? onTap;
-
-  const _FriendRow({
-    required this.count,
-    required this.isMyProfile,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
-        decoration: BoxDecoration(
-          color: ColorManager.white,
-          borderRadius: BorderRadius.circular(14.r),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.people_alt_rounded,
-                color: ColorManager.primary, size: 20.sp),
-            10.wBox,
-            Expanded(
-              child: Text(
-                '$count ${StringManager.friends.tr()}',
-                style: TextStyle(
-                  color: ColorManager.black,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            if (isMyProfile)
-              Icon(Icons.arrow_forward_ios,
-                  color: ColorManager.secondaryText, size: 14.sp),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// Shared "relation" card look (Family, Agency, Shipping Agency all use this
 /// now, on request — was the Family-only design, generalized so Agency gets
 /// the same layout with its own gradient). Crest on the left, name in a
@@ -400,18 +335,18 @@ class _RelationInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.all(12.w),
-        decoration: BoxDecoration(
-          // Reduced from 14 to 2, on request, shared by every card using
-          // this widget.
-          borderRadius: BorderRadius.circular(2.r),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: gradientColors,
-          ),
+      child: CustomPaint(
+        painter: ProfileFramePainter(
+          fillTop: gradientColors.first,
+          fillBottom: gradientColors.last,
+          lineTop: Color.lerp(pillColor, Colors.white, 0.55)!,
+          lineBottom: pillColor,
+          outerRadius: 14.r,
+          gap: 5.r,
+          innerRadius: 10.r,
         ),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 14.h),
         child: Row(
           children: [
             ClipRRect(
@@ -478,6 +413,7 @@ class _RelationInfoCard extends StatelessWidget {
               ),
             ],
           ],
+        ),
         ),
       ),
     );

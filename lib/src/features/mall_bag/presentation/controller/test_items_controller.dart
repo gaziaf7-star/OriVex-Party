@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:general/src/core/index.dart';
 import 'package:general/src/core/widgets/cache/cache_alpha_widget.dart';
+import 'package:general/src/core/widgets/cache/cache_svga_widget.dart';
 import 'package:general/src/core/widgets/cache/cache_vap_widget.dart';
 import 'package:general/src/core/widgets/cache/cache_video_widget.dart';
 import 'package:general/src/core/widgets/id_with_copy.dart';
@@ -28,6 +29,7 @@ class TestItemsController {
       AssetPreviewSource source, {
         double? width,
         double? height,
+        Map<String, String>? dynamicImageUrls,
       }) {
     switch (source.kind) {
       case AssetPreviewKind.svga:
@@ -36,6 +38,7 @@ class TestItemsController {
           width: width,
           height: height,
           boxFit: BoxFit.contain,
+          dynamicImageUrls: dynamicImageUrls,
         );
       case AssetPreviewKind.vap:
         return IgnorePointer(
@@ -304,6 +307,11 @@ class TestItemsController {
         sourceOf(param),
         width: ScreenUtil().screenWidth,
         height: ScreenUtil().screenHeight,
+        // The entrance effects have a slot for the user's own picture: show
+        // MY photo in it, as it will look when I enter a room.
+        dynamicImageUrls: {
+          kSenderAvatarKey: MyDataModel.getInstance().profile?.image ?? '',
+        },
       ),
     );
   }

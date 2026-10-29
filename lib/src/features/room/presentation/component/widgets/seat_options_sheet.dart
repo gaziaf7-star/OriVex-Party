@@ -1,6 +1,7 @@
 import 'package:general/src/core/index.dart';
 import 'package:general/src/core/utils/mic_background_helper.dart';
 import 'package:general/src/core/widgets/bottom_dialog.dart';
+import 'package:general/src/features/room/presentation/component/profile/component/utd_mute_helper.dart';
 import 'package:general/src/features/room/presentation/invite_to_mic/invite_to_mic_screen.dart';
 import 'package:general/src/features/room/room.dart';
 import 'package:general/src/features/room/presentation/admin_permissions/room_admin_permissions.dart';
@@ -282,8 +283,10 @@ Future<void> _takeSeat(int index, String userId, BuildContext context) async {
     // so an unhandled throw would escape to the zone guard and be logged as a
     // crash — guard it and record non-fatal instead.
     try {
-      await controller.mediaController
-          .setMicrophoneEnabled(RoomData.instance.cachedMicState);
+      // A moderator-muted user keeps the mic off when changing seats.
+      await controller.mediaController.setMicrophoneEnabled(
+          RoomData.instance.cachedMicState &&
+              !ModeratorMute.instance.isMeLocked);
     } catch (e, s) {
       Methods.recordNonFatal(e, s,
           reason: 'seat_options_sheet.setMicrophoneEnabled');

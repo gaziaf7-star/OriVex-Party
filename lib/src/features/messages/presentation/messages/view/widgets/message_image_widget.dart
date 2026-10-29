@@ -77,24 +77,35 @@ class MessageImageWidgetState extends State<_MessageImageWidget> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     if (widget.entity.albums != null) ...[
-                      if (widget.entity.albums?.isLocal == true)
-                        Image.file(
-                          File(widget.entity.albums?.file ?? ''),
-                          height: 150.h,
-                          width: ScreenUtil().screenWidth / 1.80,
-                          fit: BoxFit.cover,
-                        )
-                      else
-                        // LazyMediaImage honors MediaAutoDownloadPrefs — if
-                        // auto-download is off (or current network doesn't
-                        // match the policy), shows a tap-to-load placeholder
-                        // instead of fetching automatically (WhatsApp-style).
-                        LazyMediaImage(
-                          height: 150.h,
-                          width: ScreenUtil().screenWidth / 1.80,
-                          url: widget.entity.albums?.file ?? '',
-                          boxFit: BoxFit.cover,
+                      // Hard size box: the picture can never be wider than the
+                      // bubble, whatever the image/placeholder reports.
+                      SizedBox(
+                        width: ScreenUtil().screenWidth / 1.80,
+                        height: 150.h,
+                        child: ClipRect(
+                          child: widget.entity.albums?.isLocal == true
+                              ? Image.file(
+                                  File(widget.entity.albums?.file ?? ''),
+                                  fit: BoxFit.cover,
+                                  // The cached copy can be gone/corrupt by the
+                                  // time the chat is reopened: show a quiet
+                                  // placeholder instead of an error.
+                                  errorBuilder: (_, __, ___) => const Center(
+                                    child: Icon(Icons.image_not_supported_outlined,
+                                        color: Colors.white70, size: 32),
+                                  ),
+                                )
+                              // LazyMediaImage honors MediaAutoDownloadPrefs:
+                              // if auto-download is off it shows a tap-to-load
+                              // placeholder instead of fetching automatically.
+                              : LazyMediaImage(
+                                  height: 150.h,
+                                  width: ScreenUtil().screenWidth / 1.80,
+                                  url: widget.entity.albums?.file ?? '',
+                                  boxFit: BoxFit.cover,
+                                ),
                         ),
+                      ),
                     ],
                     10.hBox,
                     _SeenWidget(entity: widget.entity),

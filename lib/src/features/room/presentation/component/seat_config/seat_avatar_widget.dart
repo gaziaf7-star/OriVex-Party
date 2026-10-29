@@ -47,8 +47,15 @@ class SeatAvatarWidget extends StatelessWidget {
 
     // All data comes from backend metadata (attributes) — no local cache.
     final String resolvedImage = attributes['avatar'] ?? "";
-    final String? frame = attributes['fr'];
-    final String? frameType = attributes['frt'];
+    // The seat attributes are written when the user takes the seat, so a frame
+    // equipped after that is missing here even though the profile sheet (which
+    // reads the user's current data) shows it. Fall back to the user data the
+    // room already holds.
+    final bool hasAttrFrame = (attributes['fr'] ?? '').isNotEmpty;
+    final cachedUser = RoomData.instance.users[id];
+    final String? frame = hasAttrFrame ? attributes['fr'] : cachedUser?.frame;
+    final String? frameType =
+        hasAttrFrame ? attributes['frt'] : cachedUser?.frameType;
     final String displayName = attributes['name'] ?? "";
     final String colorName = attributes['cn'] ?? '';
     final String soundWaveSvga = attributes['sw'] ?? '';
@@ -158,9 +165,6 @@ class SeatAvatarWidget extends StatelessWidget {
                       ),
                     ),
 
-                  // ================== Charisma Badge ==================
-                  CharismaBadge(userId: userId, imageSize: avatarSize),
-
                   // ================== Mic State (below avatar, right side) ==================
                   if (userId.isNotEmpty)
                     _MicState(imageSize: avatarSize, userId: userId),
@@ -210,6 +214,14 @@ class SeatAvatarWidget extends StatelessWidget {
               ],
             ),
           ),
+
+        // Charisma value (heart + number) small under the name, like im_Chat,
+        // instead of a badge stamped over the profile photo.
+        CharismaValueLine(
+          userId: userId,
+          fontSize: m.charismaFont,
+          iconSize: m.charismaIcon,
+        ),
       ],
     );
   }
@@ -221,7 +233,10 @@ class SeatAvatarWidget extends StatelessWidget {
     required double width,
     required double height,
   }) {
-    if (frameType == "svga") {
+    // Same type rules as UserImage (the profile sheet): trust a .svga extension
+    // over a wrong frame_type, and play "vap" frames too -- a vap frame used to
+    // fall through to the plain image branch and drew nothing on the seat.
+    if (frameType == "svga" || Methods().isSvgaFile(frame)) {
       return CacheSvgaWidget(
         key: ValueKey("frame_$id"),
         url: frame,
@@ -235,6 +250,16 @@ class SeatAvatarWidget extends StatelessWidget {
         width: width,
         height: height,
         isLoop: true,
+      );
+    } else if (frameType == "vap") {
+      return IgnorePointer(
+        child: CachedVapWidget(
+          key: ValueKey("frame_$id"),
+          url: frame,
+          width: width,
+          height: height,
+          isLoop: true,
+        ),
       );
     } else {
       return IgnorePointer(

@@ -51,8 +51,9 @@ class ProfilePermissionMenu extends StatelessWidget {
         final targetId = userData.id.toString();
         final onSeat =
             controller?.seatController.isUserOnSeat(targetId) ?? false;
-        final isTargetMuted =
-            controller?.mutedParticipants.value.contains(targetId) ?? false;
+        // "Unmute" only for a moderator mute; a self-muted user is offered
+        // "Mute".
+        final isTargetMuted = ModeratorMute.instance.isLocked(targetId);
         return PopupMenuButton<int>(
           // Brand-gradient glyph (was a flat ColorManager.textPrimary glyph
           // that resolves near-black, invisible on the room profile's dark

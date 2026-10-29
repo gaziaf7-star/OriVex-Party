@@ -145,3 +145,62 @@ class CharismaBadge extends StatelessWidget {
     );
   }
 }
+
+/// Charisma value shown UNDER a seat's name/number: a pink heart and the
+/// user's charisma total next to it. Shown only while the room's charisma view
+/// is on; an empty/locked seat (no user) shows 0.
+class CharismaValueLine extends StatelessWidget {
+  final String userId;
+  final double fontSize;
+  final double iconSize;
+
+  const CharismaValueLine({
+    super.key,
+    required this.userId,
+    required this.fontSize,
+    required this.iconSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: RoomData.instance.isCharismaVisible,
+      builder: (context, visible, _) {
+        if (!visible) return const SizedBox.shrink();
+        return BlocSelector<CharismaBloc, CharismaState, String>(
+          bloc: di<CharismaBloc>(),
+          selector: (state) {
+            if (userId.isEmpty) return "0";
+            final userData = state.data?.firstWhereOrNull(
+              (element) => element.userId.toString() == userId,
+            );
+            return userData?.total ?? "0";
+          },
+          builder: (context, total) {
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.heart_fill,
+                  color: const Color(0xFFFF5C93),
+                  size: iconSize,
+                ),
+                SizedBox(width: iconSize * 0.3),
+                Text(
+                  total,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w600,
+                    height: 1.1,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}

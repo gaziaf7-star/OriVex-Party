@@ -1,4 +1,5 @@
 import 'package:general/src/core/services/room_background_service.dart';
+import 'package:general/src/features/room/presentation/component/profile/component/utd_mute_helper.dart';
 import 'package:general/src/features/room/presentation/global_audio/global_audio_controller.dart';
 import 'package:general/src/features/room/room.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -38,6 +39,15 @@ class MicrophoneButton extends StatelessWidget {
                   // they restore it (GlobalAudioController shows its own
                   // toast when the mute lands, so this stays silent here
                   // to avoid spamming on every blocked tap).
+                  return;
+                }
+                if (targetState && ModeratorMute.instance.isMeLocked) {
+                  // Muted by the owner/an admin: only they can unmute.
+                  Methods.showToast(
+                    context,
+                    message: StringManager.mutedByModerator.tr(),
+                    isError: true,
+                  );
                   return;
                 }
                 if (targetState) {

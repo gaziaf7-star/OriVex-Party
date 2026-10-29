@@ -541,7 +541,10 @@ class Methods {
     if (_isPickerActive) return null;
     _isPickerActive = true;
     try {
-      return await picker.pickImage(source: source, imageQuality: imageQuality);
+      final picked =
+          await picker.pickImage(source: source, imageQuality: imageQuality);
+      if (picked != null) await _ensureJpegEndMarker(File(picked.path));
+      return picked;
     } on PlatformException catch (e) {
       // A platform-side picker is already open (e.g. double tap raced the
       // flag, or a non-guarded native sheet): ignore instead of crashing.
@@ -549,6 +552,37 @@ class Methods {
       rethrow;
     } finally {
       _isPickerActive = false;
+    }
+  }
+
+  /// Some picked photos arrive without the JPEG end-of-image marker (FF D9).
+  /// Flutter's decoder rejects such a file as "invalid image data", so the
+  /// bubble stayed blank both locally and after upload (the server stores the
+  /// exact bytes it is sent). The picked file is our own cache copy: append the
+  /// marker when it is missing so it decodes everywhere. A file that already
+  /// ends with it (ignoring zero padding) is left untouched.
+  static Future<void> _ensureJpegEndMarker(File file) async {
+    try {
+      final length = await file.length();
+      if (length < 4) return;
+      final raf = await file.open();
+      try {
+        final head = await raf.read(2);
+        if (head.length < 2 || head[0] != 0xFF || head[1] != 0xD8) return;
+        final tailLen = length < 4096 ? length : 4096;
+        await raf.setPosition(length - tailLen);
+        final tail = await raf.read(tailLen);
+        var end = tail.length;
+        while (end > 0 && tail[end - 1] == 0) {
+          end--;
+        }
+        if (end >= 2 && tail[end - 2] == 0xFF && tail[end - 1] == 0xD9) return;
+      } finally {
+        await raf.close();
+      }
+      await file.writeAsBytes(const [0xFF, 0xD9], mode: FileMode.append);
+    } catch (_) {
+      // Best effort: never block sending because of the repair.
     }
   }
 

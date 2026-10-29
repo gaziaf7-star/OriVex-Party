@@ -662,6 +662,19 @@ class UTDSeatController {
       return false;
     }
 
+    return _takeSeatAttempt(index, userId, attempt: 0);
+  }
+
+  /// Max extra take attempts after a 409 while the server still holds a seat
+  /// for someone who already left the room (see [_takeSeatAttempt]).
+  static const int _maxGhostSeatRetries = 3;
+
+  Future<bool> _takeSeatAttempt(
+    int index,
+    String userId, {
+    required int attempt,
+  }) async {
+    if (_disposed || _seatApi == null || _roomId == null) return false;
     try {
       debugPrint('$_tag takeSeat — calling UTD API: POST /seats/$index/take');
       final gen = _applyGeneration;
@@ -675,23 +688,76 @@ class UTDSeatController {
       debugPrint('$_tag takeSeat — UTD API SUCCESS');
       return true;
     } catch (e) {
-      // The backend's own seat DB can know the user is already seated
-      // (e.g. their reserved owner seat, or a stale prior session) even
-      // when the room-metadata snapshot this controller read on join
-      // still shows that seat's occupant as null — that gap is exactly
-      // what the 409 body says ("Already on this seat" / "Already
-      // seated — use move"). Failing here with just an error toast left
-      // the user unable to sit down at all until they backed out and
-      // re-entered the room. Retrying as a move (what the server itself
-      // is telling us to do) completes the action instead.
       if (e is DioException && e.response?.statusCode == 409) {
-        debugPrint(
-            '$_tag takeSeat — 409 conflict, retrying as moveSeat(userId: $userId, targetSeat: $index)');
-        return moveSeat(userId, index);
+        return _resolveTakeConflict(index, userId, attempt: attempt);
       }
       debugPrint('$_tag takeSeat — UTD API ERROR: $e');
       return false;
     }
+  }
+
+  /// A 409 on take means either (a) the server already has US seated (our
+  /// reserved owner seat, or a stale prior session the snapshot missed), or
+  /// (b) the seat is held by someone else. (b) is often a ghost: the previous
+  /// occupant left the room, but the server only frees their seat once its
+  /// participant_left webhook / seat reconciler runs, so for a few seconds the
+  /// tile looks empty here while every take on it is rejected. Retrying as a
+  /// move — the old blanket handling — always failed for (b), which is why the
+  /// seat only became usable after sitting somewhere else first.
+  ///
+  /// Re-read the authoritative seat state and act on what it says.
+  Future<bool> _resolveTakeConflict(
+    int index,
+    String userId, {
+    required int attempt,
+  }) async {
+    final rid = _roomId;
+    if (_disposed || _seatApi == null || rid == null) return false;
+
+    Map<String, dynamic> data;
+    try {
+      final gen = _applyGeneration;
+      data = await _seatApi!.getSeats(roomId: rid);
+      if (_disposed || rid != _roomId) return false;
+      if (_applyGeneration == gen) _applyBackendSeatState(data);
+    } catch (e) {
+      // Can't tell which case this is — keep the previous behaviour.
+      debugPrint('$_tag takeSeat — 409, GET /seats failed ($e); trying move');
+      return moveSeat(userId, index);
+    }
+
+    final fresh = RoomSeatState.fromJson(data).seats;
+    final mine = fresh.where((s) => s.occupantUserId == userId).firstOrNull;
+    if (mine != null) {
+      if (mine.index == index) return true;
+      debugPrint('$_tag takeSeat — 409, already on seat ${mine.index}; moving');
+      return moveSeat(userId, index);
+    }
+
+    final holder = fresh
+        .where((s) => s.index == index)
+        .firstOrNull
+        ?.occupantUserId;
+    final holderPresent =
+        holder != null && holder.isNotEmpty && _liveParticipantInfo(holder) != null;
+    if (holderPresent) {
+      debugPrint('$_tag takeSeat — 409, seat $index taken by $holder');
+      return false;
+    }
+    if (attempt >= _maxGhostSeatRetries) {
+      debugPrint('$_tag takeSeat — 409, seat $index still held; giving up');
+      return false;
+    }
+
+    // Seat is free now, or held by someone no longer in the room: give the
+    // server's cleanup a moment, then try again.
+    debugPrint(
+        '$_tag takeSeat — 409, seat $index held by departed "$holder"; retry ${attempt + 1}');
+    if (holder != null) {
+      await Future<void>.delayed(Duration(milliseconds: 800 * (attempt + 1)));
+    }
+    if (_disposed || rid != _roomId) return false;
+    return _takeSeatAttempt(index, userId, attempt: attempt + 1);
   }
 
   /// Generation counter snapshot for [applyMutationResponse] callers outside
@@ -764,20 +830,57 @@ class UTDSeatController {
       return false;
     }
 
-    try {
-      debugPrint('$_tag moveSeat — calling UTD API: POST /seats/move');
-      final gen = _applyGeneration;
+    for (var attempt = 0;; attempt++) {
+      if (_disposed || _seatApi == null || _roomId == null) return false;
       final rid = _roomId!;
-      final res = await _seatApi!.moveSeat(
-        roomId: rid,
-        identity: userId,
-        targetSeat: targetSeat,
-      );
-      applyMutationResponse(res, gen: gen, roomId: rid);
-      debugPrint('$_tag moveSeat — UTD API SUCCESS');
-      return true;
-    } catch (e) {
-      debugPrint('$_tag moveSeat — UTD API ERROR: $e');
+      try {
+        debugPrint('$_tag moveSeat — calling UTD API: POST /seats/move');
+        final gen = _applyGeneration;
+        final res = await _seatApi!.moveSeat(
+          roomId: rid,
+          identity: userId,
+          targetSeat: targetSeat,
+        );
+        applyMutationResponse(res, gen: gen, roomId: rid);
+        debugPrint('$_tag moveSeat — UTD API SUCCESS');
+        return true;
+      } catch (e) {
+        // Same ghost-seat window as takeSeat: the target is still held for a
+        // user who already left the room until the server frees it.
+        if (e is DioException &&
+            e.response?.statusCode == 409 &&
+            attempt < _maxGhostSeatRetries &&
+            await _isHeldByDepartedUser(targetSeat, rid)) {
+          debugPrint(
+              '$_tag moveSeat — 409, seat $targetSeat held by departed user; retry ${attempt + 1}');
+          await Future<void>.delayed(
+              Duration(milliseconds: 800 * (attempt + 1)));
+          if (rid != _roomId) return false;
+          continue;
+        }
+        debugPrint('$_tag moveSeat — UTD API ERROR: $e');
+        return false;
+      }
+    }
+  }
+
+  /// Re-reads the authoritative seats and reports whether [index] is held by
+  /// someone who is no longer connected to the room.
+  Future<bool> _isHeldByDepartedUser(int index, String roomId) async {
+    try {
+      final gen = _applyGeneration;
+      final data = await _seatApi!.getSeats(roomId: roomId);
+      if (_disposed || roomId != _roomId) return false;
+      if (_applyGeneration == gen) _applyBackendSeatState(data);
+      final holder = RoomSeatState.fromJson(data)
+          .seats
+          .where((s) => s.index == index)
+          .firstOrNull
+          ?.occupantUserId;
+      return holder != null &&
+          holder.isNotEmpty &&
+          _liveParticipantInfo(holder) == null;
+    } catch (_) {
       return false;
     }
   }

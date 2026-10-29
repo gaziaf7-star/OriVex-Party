@@ -127,6 +127,12 @@ class AssetsManager {
 
   //
   static String get luckyBoxBanner => "lucky_box_banner".pngImg;
+  static String get rocketLogo => "assets/icons/ui_icons/roket1.png";
+  static String get rocketRankingCard => "assets/icons/ui_icons/roketRankingcard.png";
+  static String get rocketLaunchpadSvga =>
+      "assets/icons/ui_icons/rocket_launchpad_2mb.svga";
+  static String get rocketRewardFrame =>
+      "assets/icons/ui_icons/roket Reword frame.png";
 
   //
   static String get frameTopTwoCp => "frame_top_two_cp".pngImg;
@@ -329,11 +335,18 @@ class AssetsManager {
 
   static String get rechargeChargeAgency => "recharge_charge_agency".pngIcon;
 
-  static String get grid1 => "top1room".svgaImg;
+  /// Animated frames for the top-3 room cards on the home list.
+  static const List<String> roomCardTopFrames = [
+    "assets/icons/ui_icons/top1_hello.svga",
+    "assets/icons/ui_icons/top2_hello.svga",
+    "assets/icons/ui_icons/top3_hello.svga",
+  ];
 
-  static String get grid2 => "top2room".svgaImg;
+  static String get grid1 => roomCardTopFrames[0];
 
-  static String get grid3 => "top3room".svgaImg;
+  static String get grid2 => roomCardTopFrames[1];
+
+  static String get grid3 => roomCardTopFrames[2];
 
   static String get newSoundWave => "109190".pngIcon;
 
@@ -487,7 +500,6 @@ class AssetsManager {
 
   // Ornate purple/gold border overlay drawn around every theme1 home room
   // card (audio room list), on request.
-  static String get theme1RoomCardFrame => "roomCrdframe (1)".pngImg;
 
   static String get filterIcon => "filter-search".pngIcon;
 
@@ -996,6 +1008,10 @@ class AssetsManager {
   static String get mePremiumEmpty => "ui_icons/me_premium_empty".webPIcon;
   static String get mePremiumEntranceBg =>
       "ui_icons/me_premium_entrance_bg".pngIcon;
+  static String get cpCardBg => "assets/icons/ui_icons/Cp Card.png";
+  static String get cpAddCard => "assets/icons/ui_icons/cpadd card.png";
+  static String get acceptFriendCard =>
+      "assets/icons/ui_icons/acceptfriend card.png";
   static String get profileRelationshipAddCpIc =>
       "ui_icons/profile_relationship_add_cp_ic".pngIcon;
   static String get profileRelationshipBestieBg =>

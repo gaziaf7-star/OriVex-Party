@@ -78,7 +78,13 @@ class MessagesDao extends DatabaseAccessor<AppDatabase> with _$MessagesDaoMixin 
   /// 3) else insert fresh.
   /// Returns the resolved local_id. Idempotent — safe to call from both the
   /// REST send-ack path and the realtime publication path.
-  Future<int> upsertFromServer(MessagesCompanion entry) async {
+  Future<int> upsertFromServer(MessagesCompanion incoming) async {
+    // A payload without an attachment (e.g. a lean realtime push or a text
+    // echo) must never wipe the attachment an existing row already holds.
+    final entry = (incoming.attachmentJson.present &&
+            incoming.attachmentJson.value == null)
+        ? incoming.copyWith(attachmentJson: const Value.absent())
+        : incoming;
     return transaction(() async {
       if (entry.clientUuid.present) {
         final byUuid = await findByClientUuid(entry.clientUuid.value);

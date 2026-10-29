@@ -96,7 +96,10 @@ class RealtimeMessageMapper {
       serverStatus: Value(serverStatus),
       reactsJson: Value(_reactsJson(json['reacts'] ?? json['reactions'])),
       attachmentJson:
-          Value(_attachmentJson(json['albums'] ?? json['attachment'])),
+          Value(_attachmentJson(json['albums'] ??
+              json['message_albums'] ??
+              json['attachments'] ??
+              json['attachment'])),
       replyPreviewJson: Value(_replyJson(
           json['replay'] ?? json['reply'] ?? json['reply_preview'])),
     );
@@ -137,6 +140,11 @@ class RealtimeMessageMapper {
 
   /// Normalize a server album/attachment object into canonical attachment JSON.
   static String? _attachmentJson(dynamic raw) {
+    // The server sends `albums` as a LIST of attachments; the UI shows the
+    // first one. A single object is accepted too.
+    if (raw is List) {
+      raw = raw.firstWhere((e) => e is Map, orElse: () => null);
+    }
     if (raw is! Map) return null;
     final file = raw['file'] ?? raw['url'];
     if (file == null) return null;
@@ -201,9 +209,14 @@ class RealtimeMessageMapper {
 
   MessageContentType _contentType(String? raw) {
     switch (raw) {
+      // The server labels pictures "img" (and animated ones "gif"); the app's
+      // own optimistic rows use "image". All of them are image content.
       case 'image':
+      case 'img':
+      case 'gif':
         return MessageContentType.image;
       case 'audio':
+      case 'voice':
         return MessageContentType.audio;
       case 'video':
         return MessageContentType.video;

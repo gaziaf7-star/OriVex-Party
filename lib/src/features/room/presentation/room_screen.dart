@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:audio_session/audio_session.dart';
+import 'package:general/src/features/room/presentation/component/profile/component/utd_mute_helper.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:general/src/core/index.dart';
 import 'package:general/src/features/room/presentation/component/seat_config/seat_ghost_guard.dart';
@@ -763,7 +764,8 @@ class RoomScreenState extends State<RoomScreen> with TickerProviderStateMixin {
                         (e) => e.toString(),
                   ),
                 },
-                layoutMode: RoomData.instance.room.mode ?? '3',
+                // Owner reopens in the layout they left the room in.
+                layoutMode: roomLayoutForJoin(),
                 onSeatChanged: (seats) {
                   // Do NOT clear()+recreate every GlobalKey on each seat change:
                   // minting a fresh key detaches it from the rendered seat widget for
@@ -843,6 +845,7 @@ class RoomScreenState extends State<RoomScreen> with TickerProviderStateMixin {
                     ),
                   );
                   RoomData.instance.utdController = controller;
+                  ModeratorMute.instance.attach(controller);
                   UTDSeatWidget.nameGradient = ColorManager.brandGradient;
                   // Pick up a Ludo game that is already running in this room.
                   LudoRoomController.instance.onRoomEntered(

@@ -1,3 +1,4 @@
+import 'package:general/src/features/room/presentation/component/buttons/noise_button.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -137,7 +138,21 @@ class _BasicToolDialogState extends State<BasicToolDialog> {
     userData: _quickGameUserData(StringManager.diceGame),
   );
 
+  static const String _youtubeToolKey = 'youtube_tool';
+
   List<ToolConfig> _getAudioToolConfigs() => [
+    ToolConfig(
+      title: 'YouTube',
+      image: 'assets/icons/ui_icons/youtube (1).png',
+      // The real YouTube logo, not the brand-gradient tint.
+      noTint: true,
+      isVisible: (context, widget) =>
+          ConstantsManager.isShowCinemaMode &&
+          (widget.ownerId == widget.userId || widget.isAdmin),
+      onTap: () => _closeThenOpen(_youtubeToolKey, (parentContext) async {
+        _toggleCinema(widget.roomData.id.toString());
+      }),
+    ),
     ToolConfig(
       title: LockRoomDialog.roomIsLoked
           ? StringManager.unlockRoom.tr()
@@ -579,15 +594,17 @@ class _BasicToolDialogState extends State<BasicToolDialog> {
         if (PkController.isPK.value || PkController.showPK.value) {
           Methods.showToast(context,
               message: StringManager.closePkFirst.tr(), isError: true);
-        } else if (RoomData.instance.room.mode == '5' ||
-            RoomData.instance.runningCinemaMode == true) {
-          Methods.showToast(context,
-              message: StringManager.closeCinemaMode.tr(), isError: true);
         } else {
-          di<CharismaBloc>().add(
-            StartCharismaEvent(roomId: widget.roomData.id.toString()),
+          // Charisma and YouTube can run together (on request).
+          // Remember a manual OFF so the room doesn't turn charisma back on
+          // by itself at the next entry (it's on by default otherwise).
+          final roomId = widget.roomData.id.toString();
+          HiveManager().saveData<bool>(
+            KeysManager.USER_BOX,
+            charismaOffKey(roomId),
+            RoomData.instance.isCharismaVisible.value == true,
           );
-          RoomData.instance.runningCinemaMode = false;
+          di<CharismaBloc>().add(StartCharismaEvent(roomId: roomId));
         }
       },
     ),
@@ -699,12 +716,16 @@ class _BasicToolDialogState extends State<BasicToolDialog> {
       final controller = RoomData.instance.utdController;
       if (controller != null) {
         final mode = controller.resolveMode('3');
-        controller.seatController.setupSeats(
-          identity: MyDataModel.getInstance().id.toString(),
-          seatCount: mode.seatCount,
-          seatMode: controller.seatController.seatMode.value,
-          modeId: '3',
-        );
+        controller.seatController
+            .setupSeats(
+              identity: MyDataModel.getInstance().id.toString(),
+              seatCount: mode.seatCount,
+              seatMode: controller.seatController.seatMode.value,
+              modeId: '3',
+            )
+            .then((ok) {
+          if (ok) persistRoomMode('3');
+        });
       }
       di<YoutubeBloc>().add(const InitialViewYoutubeVideoEvent());
       di<YoutubeBloc>().add(const DisposeViewYoutubeVideoEvent());
@@ -714,9 +735,8 @@ class _BasicToolDialogState extends State<BasicToolDialog> {
       if (PkController.showPK.value || PkController.isPK.value) {
         Methods.showToast(ctx,
             message: StringManager.closePkFirst.tr(), isError: true);
-      } else if (RoomData.instance.isCharismaVisible.value) {
-        Methods.showToast(ctx, message: StringManager.closeCharisma.tr());
       } else {
+        // Charisma may stay on while YouTube plays (on request).
         showDialog(
           context: ctx,
           builder: (_) => PrivacyDialog(roomId: roomId),
@@ -746,10 +766,22 @@ class _BasicToolDialogState extends State<BasicToolDialog> {
   Widget build(BuildContext context) {
     final hasSpeaker = di<RoomStateManager>().isInAudioRoom &&
         !ConstantsManager.isTheme1;
+    // Mic noise-reduction switch: every audio room, any theme.
+    final hasNoise = di<RoomStateManager>().isInAudioRoom &&
+        RoomData.instance.utdController != null;
 
     final tools = _getAudioToolConfigs()
         .where((tool) => tool.isVisible(context, widget))
         .toList();
+    final youtubeTool =
+        tools.where((t) => t.title == 'YouTube').firstOrNull;
+    final slots = <Object>[
+      if (youtubeTool != null) youtubeTool,
+      if (hasSpeaker) _speakerSlot,
+      if (hasNoise) _noiseSlot,
+      ...tools.where((t) => t != youtubeTool),
+      _gamesSlot,
+    ];
     // Games are available to every room user. Keep using the app's existing
     // GamesView -> OpenGameBloc -> LeaderCCGameWebViewScreen flow; do not
     // introduce a second game/session implementation here.
@@ -852,16 +884,20 @@ class _BasicToolDialogState extends State<BasicToolDialog> {
                   // Always reserve one cell for Games, plus Speaker when
                   // that audio-room control is present. The old count omitted
                   // the Games cell whenever Speaker was visible.
-                  itemCount: tools.length + (hasSpeaker ? 2 : 1),
+                  // Order: YouTube first, then Speaker (non-theme1 audio
+                  // rooms), Noise (all audio rooms), the other tools, and
+                  // Games last.
+                  itemCount: slots.length,
                   itemBuilder: (context, index) {
-                    if (index == 0 &&
-                        hasSpeaker &&
-                        !ConstantsManager.isTheme1) {
+                    final slot = slots[index];
+                    if (slot == _speakerSlot) {
                       return const SpeakerButton();
-                    } else if (index == tools.length + (hasSpeaker ? 1 : 0)) {
+                    } else if (slot == _noiseSlot) {
+                      return const _NoiseToolTile();
+                    } else if (slot == _gamesSlot) {
                       return gamesWidget;
                     }
-                    final tool = tools[index - (hasSpeaker ? 1 : 0)];
+                    final tool = slot as ToolConfig;
 
                     return ValueListenableBuilder(
                       valueListenable: tool.title.contains(StringManager.pk)
@@ -906,6 +942,44 @@ class _BasicToolDialogState extends State<BasicToolDialog> {
               },
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+const String _speakerSlot = 'speaker';
+const String _noiseSlot = 'noise';
+const String _gamesSlot = 'games';
+
+/// "Noise" tile: switches background-noise reduction on the user's own mic.
+/// Same look as every other tool tile; the label shows the current state.
+class _NoiseToolTile extends StatelessWidget {
+  const _NoiseToolTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = RoomData.instance.utdController;
+    if (controller == null) return const SizedBox.shrink();
+    final media = controller.mediaController;
+    return ValueListenableBuilder<bool>(
+      valueListenable: media.isNoiseReductionOn,
+      builder: (context, isOn, _) => InkWell(
+        onTap: () {
+          final next = !isOn;
+          media.setNoiseReduction(next);
+          NoiseReductionPrefs.save(next);
+          Methods.showToast(
+            context,
+            message: next ? 'Noise reduction on' : 'Noise reduction off',
+          );
+        },
+        child: BasicToolItem(
+          image: '',
+          icon: isOn
+              ? Icons.noise_control_off_rounded
+              : Icons.noise_aware_rounded,
+          title: isOn ? 'Noise: On' : 'Noise: Off',
         ),
       ),
     );

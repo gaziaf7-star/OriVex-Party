@@ -112,68 +112,13 @@ class _Theme2VisitorCpCardState extends State<Theme2VisitorCpCard> {
                     clipBehavior: Clip.none,
                     alignment: AlignmentDirectional.center,
                     children: [
-                      // CP Background
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12.r),
-                        child: Image.asset(
-                          AssetsManager.profileRelationshipCpBg,
+                      // CP card art (keeps its own aspect ratio).
+                      LayoutBuilder(
+                        builder: (context, c) => Image.asset(
+                          AssetsManager.cpCardBg,
                           fit: BoxFit.fill,
-                          height: 120.h,
+                          height: c.maxWidth * 311 / 802,
                           width: double.infinity,
-                        ),
-                      ),
-                      // Corner decoration (top-right)
-                      Positioned(
-                        top: -15,
-                        left: 5,
-                        child: Image.asset(
-                          AssetsManager.profileRelationshipCpCorner,
-                          height: 100.h,
-                          width: 100.w,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                      // Corner decoration (top-left - mirrored)
-                      Positioned(
-                        top: -15,
-                        right: 5,
-                        child: Transform.flip(
-                          flipX: true,
-                          child: Image.asset(
-                            AssetsManager.profileRelationshipCpCorner,
-                            height: 100.h,
-                            width: 100.w,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                      // Corner decoration (bottom-right - rotated)
-                      Positioned(
-                        bottom: -15,
-                        left: 5,
-                        child: Transform.flip(
-                          flipY: true,
-                          child: Image.asset(
-                            AssetsManager.profileRelationshipCpCorner,
-                            height: 100.h,
-                            width: 100.w,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                      // Corner decoration (bottom-left - rotated + mirrored)
-                      Positioned(
-                        bottom: -15,
-                        right: 5,
-                        child: Transform.flip(
-                          flipX: true,
-                          flipY: true,
-                          child: Image.asset(
-                            AssetsManager.profileRelationshipCpCorner,
-                            height: 100.h,
-                            width: 100.w,
-                            fit: BoxFit.contain,
-                          ),
                         ),
                       ),
                       // Avatars + Love icon
@@ -290,17 +235,13 @@ class _Theme2VisitorCpCardState extends State<Theme2VisitorCpCard> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   padding: context.paddingZero(),
-                  itemCount: widget.myProfile
-                      ? state.data?.seats != 9
-                      ? (state.data?.seats ?? 0) + 1
-                      : state.data?.seats!
-                      : state.data?.seats!,
+                  itemCount: state.data?.seats ?? 0,
                   gridDelegate:
                   const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
-                    childAspectRatio: .82,
+                    childAspectRatio: 0.77,
                   ),
                   itemBuilder: (context, index) {
                     if (index < (state.data?.seats ?? 0)) {
@@ -311,8 +252,7 @@ class _Theme2VisitorCpCardState extends State<Theme2VisitorCpCard> {
                       }
                       return _buildEmptyCpSlot(context, state, index);
                     }
-                    // Buy more seats button
-                    return _buildBuySeatButton(context, state);
+                    return const SizedBox.shrink();
                   },
                 ),
               ),
@@ -324,18 +264,6 @@ class _Theme2VisitorCpCardState extends State<Theme2VisitorCpCard> {
   }
 
   Widget _buildCpCard(RemainingCp cp, BuildContext context) {
-    final typeIndex = cp.relation?.type == 'friend'
-        ? 0
-        : cp.relation?.type == 'brother'
-        ? 1
-        : 2;
-
-    final bgAsset = typeIndex == 0
-        ? AssetsManager.profileRelationshipFriendBg
-        : typeIndex == 1
-        ? AssetsManager.profileRelationshipBestieBg
-        : AssetsManager.profileRelationshipCpBg;
-
     return InkWell(
       onTap: () {
         Methods().userProfileNavigator(
@@ -343,251 +271,146 @@ class _Theme2VisitorCpCardState extends State<Theme2VisitorCpCard> {
           userId: cp.user?.id.toString(),
         );
       },
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 8.h),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16.r),
-          image: DecorationImage(
-            image: AssetImage(bgAsset),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
+      child: LayoutBuilder(builder: (context, c) {
+        final w = c.maxWidth, h = c.maxHeight;
+        final d = w * 0.4; // fits inside the ring of the frame art
+        return Stack(
+          fit: StackFit.expand,
           children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                // Title label at top
-                const Spacer(),
-                // Avatar circle
-                Center(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: ColorManager.white.withValues(alpha: 0.3),
-                        width: 2,
-                      ),
-                    ),
-                    child: ClipOval(
-                      child: ImageViewWidget(
-                        url: cp.user?.image ?? '',
-                        displayName: cp.user?.name ?? '',
-                        height: 50.h,
-                        width: 50.h,
-                        boxFit: BoxFit.cover,
-                        padding: EdgeInsetsDirectional.zero,
-                        margin: EdgeInsetsDirectional.zero,
-                      ),
-                    ),
-                  ),
-                ),
-                6.hBox,
-                // Name
-                GradientName(child: Text(
-                  cp.user?.name ?? '',
-                  style: TextStyle(
-                    color: ColorManager.onDark,
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                )),
-                // Days
-                Text(
-                  '${cp.di ?? 0}D',
-                  style: TextStyle(
-                    color: ColorManager.onDark.withValues(alpha: 0.7),
-                    fontSize: 10.sp,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+            Image.asset(AssetsManager.acceptFriendCard, fit: BoxFit.fill),
+            // Picture inside the ring.
             Positioned(
-              top: -5.h,
-              right: 20.w,
-              left: 20.w,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
-                decoration: BoxDecoration(
-                  color: ColorManager.white.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(10.r),
-                    bottomRight: Radius.circular(10.r),
-                  ),
+              top: h * 0.385 - d / 2,
+              left: (w - d) / 2,
+              width: d,
+              height: d,
+              child: ClipOval(
+                child: ImageViewWidget(
+                  url: cp.user?.image ?? '',
+                  displayName: cp.user?.name ?? '',
+                  height: d,
+                  width: d,
+                  boxFit: BoxFit.cover,
+                  padding: EdgeInsetsDirectional.zero,
+                  margin: EdgeInsetsDirectional.zero,
                 ),
+              ),
+            ),
+            // Name between the ring and the pill.
+            Positioned(
+              left: w * 0.12,
+              right: w * 0.12,
+              top: h * 0.665,
+              child: GradientName(
                 child: Text(
-                  title_[typeIndex],
+                  cp.user?.name ?? '',
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: ColorManager.onDark,
-                    fontSize: 10.sp,
+                    fontSize: 12.sp,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ),
+            // Days on the pill.
+            Positioned(
+              left: w * 0.22,
+              right: w * 0.22,
+              top: h * 0.815,
+              height: h * 0.075,
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${cp.di ?? 0}D',
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
-        ),
-      ),
+        );
+      }),
     );
   }
 
   Widget _buildEmptyCpSlot(
       BuildContext context, CpProfileStates state, int index) {
-    if (widget.myProfile) {
-      return InkWell(
-        onTap: () => Navigator.pushNamed(context, Routes.cpStorePage),
-        child: CustomPaint(
-          // Professional "Add" slot: soft gradient card + a dashed border
-          // drawn with a CustomPainter, instead of the old flat dark tile.
-          painter: _DashedBorderPainter(
-            color: ColorManager.white.withValues(alpha: 0.55),
-            radius: 12.r,
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF8E6BFF), Color(0xFFC084FC)],
-              ),
-              borderRadius: BorderRadius.circular(12.r),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(
-                  AssetsManager.profileRelationshipAddCpIc,
-                  height: 40.h,
-                  width: 40.w,
-                ),
-                4.hBox,
-                Text(
-                  StringManager.add.tr(),
-                  style: TextStyle(
-                    color: ColorManager.white,
-                    fontSize: 10.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF2D1C42),
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      child: Center(
-        child: Icon(
-          Icons.person_outline,
-          color: ColorManager.theme2TextSecondary.withValues(alpha: 0.3),
-          size: 30.sp,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBuySeatButton(BuildContext context, CpProfileStates state) {
-    return InkWell(
-      onTap: () {
-        widget.cpProfileBloc.add(
-          BuyCpSeatsEvents(
-            wareId: '${state.data?.wares?.id ?? 0}',
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF2D1C42),
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(
-            color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add_circle_outline,
-                color: const Color(0xFF8B5CF6), size: 28.sp),
-            4.hBox,
-            Text(
-              '${StringManager.expandCp.tr()}\n${state.data?.wares?.price ?? 0}',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: ColorManager.theme2TextSecondary,
-                fontSize: 9.sp,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return GestureDetector(
+      onTap: widget.myProfile
+          ? () => Navigator.pushNamed(context, Routes.cpStorePage)
+          : null,
+      child: const _CpAddCard(),
     );
   }
 }
 
-/// Draws a soft dashed rounded-rect border over its child — used to give
-/// the CP "Add" slot a more professional, intentional look on top of its
-/// gradient background.
-class _DashedBorderPainter extends CustomPainter {
-  final Color color;
-  final double radius;
-  final double dashWidth;
-  final double dashGap;
-  final double strokeWidth;
-
-  _DashedBorderPainter({
-    required this.color,
-    required this.radius,
-    this.dashWidth = 5,
-    this.dashGap = 4,
-    this.strokeWidth = 1.4,
-  });
+/// "Add" slot: the supplied gold-framed card art with a round "+" button in
+/// the middle and the label on its pill.
+class _CpAddCard extends StatelessWidget {
+  const _CpAddCard();
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
-
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        strokeWidth / 2,
-        strokeWidth / 2,
-        size.width - strokeWidth,
-        size.height - strokeWidth,
-      ),
-      Radius.circular(radius),
-    );
-
-    final path = Path()..addRRect(rrect);
-    final metrics = path.computeMetrics();
-    for (final metric in metrics) {
-      double distance = 0;
-      while (distance < metric.length) {
-        final next = distance + dashWidth;
-        canvas.drawPath(
-          metric.extractPath(distance, next.clamp(0, metric.length)),
-          paint,
-        );
-        distance = next + dashGap;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
-    return oldDelegate.color != color ||
-        oldDelegate.radius != radius ||
-        oldDelegate.dashWidth != dashWidth ||
-        oldDelegate.dashGap != dashGap ||
-        oldDelegate.strokeWidth != strokeWidth;
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, c) {
+      final w = c.maxWidth, h = c.maxHeight;
+      final d = w * 0.46;
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(AssetsManager.cpAddCard, fit: BoxFit.fill),
+          Positioned(
+            top: h * 0.24,
+            left: (w - d) / 2,
+            width: d,
+            height: d,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFD9A8FF), Color(0xFFA766F2)],
+                ),
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x55A766F2), blurRadius: 8),
+                ],
+              ),
+              child: Icon(Icons.add_rounded, color: Colors.white, size: d * 0.62),
+            ),
+          ),
+          Positioned(
+            left: w * 0.2,
+            right: w * 0.2,
+            top: h * 0.735,
+            height: h * 0.13,
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  StringManager.add.tr(),
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
+                    shadows: const [Shadow(color: Color(0x88603BAA), blurRadius: 3)],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    });
   }
 }

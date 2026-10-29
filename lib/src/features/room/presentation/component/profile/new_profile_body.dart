@@ -16,6 +16,7 @@ import 'package:general/src/features/profile/presentation/profile/bloc/bloc_user
 import 'package:general/src/features/profile/presentation/profile/bloc/bloc_user_badges/get_user_badges_state.dart';
 import 'package:general/src/features/room/data/model/user_in_room_model.dart';
 import 'package:general/src/features/room/presentation/component/profile/component/new_profile_permission_menu.dart';
+import 'package:general/src/features/room/presentation/component/profile/component/room_profile_cards.dart';
 import 'package:general/src/features/profile/presentation/f_f_f_v/bloc/bloc_make_follow_unfollow/follow_bloc.dart';
 import 'package:general/src/features/profile/domain/profile_use_case/follow_unfollow_use_case.dart';
 import 'package:general/src/features/room/presentation/component/profile/widgets/new_follow_button.dart';
@@ -246,7 +247,7 @@ class _NewProfileBodyState extends State<NewProfileBody> {
 
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.92,
         minHeight: 300.h,
       ),
       child: Stack(
@@ -257,6 +258,11 @@ class _NewProfileBodyState extends State<NewProfileBody> {
           ValueListenableBuilder(
               valueListenable: backgroundColor,
               builder: (context, value, child) {
+                // Dark profile-card frame behind the sheet -> light text.
+                final onDark = value == ColorManager.transparent ||
+                    value == ColorManager.black;
+                final textColor =
+                    onDark ? Colors.white : ColorManager.momentPostTextColor;
                 return Container(
                   decoration: BoxDecoration(
                     color: value,
@@ -279,44 +285,87 @@ class _NewProfileBodyState extends State<NewProfileBody> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // Nudged further down on request.
-                        60.verticalSpace,
-                        InkWell(
-                          onTap: () {
-                            final int? targetId = widget.userData.id;
-                            if (targetId == null || targetId == 0) return;
-                            context.popRoute();
-                            Methods().userProfileNavigator(
-                              context: context,
-                              user_: const UserEntity(),
-                              comesFromRoom: true,
-                              userId: targetId.toString(),
-                            );
+                        BlocBuilder<FetchExtraDataBloc, FetchExtraDataStates>(
+                          bloc: _fetchExtraDataBloc,
+                          buildWhen: (prev, curr) =>
+                              prev.extraProfileData != curr.extraProfileData,
+                          builder: (context, extraState) {
+                            final hasCards = (widget.userData.vipLevel ?? 0) > 0 ||
+                                (extraState.extraProfileData?.gifts ?? [])
+                                    .isNotEmpty;
+                            // Sheet grows with the cards; keep the avatar clear
+                            // of the frame's top ornament as it does.
+                            return SizedBox(height: hasCards ? 120.h : 80.h);
                           },
-                          child: UserImage(
-                            image: widget.userData.image ?? '',
-                            displayName: widget.userData.name ?? '',
-                            imageSize: 80,
-                            frame: widget.userData.frame,
-                            frameType: widget.userData.frameType,
-                            frameSize: 125,
+                        ),
+                        // Avatar in the middle, CP card to its right.
+                        BlocBuilder<FetchExtraDataBloc, FetchExtraDataStates>(
+                          bloc: _fetchExtraDataBloc,
+                          buildWhen: (prev, curr) =>
+                              prev.extraProfileData != curr.extraProfileData,
+                          builder: (context, extraState) => Row(
+                            children: [
+                              const Expanded(child: SizedBox()),
+                              InkWell(
+                                onTap: () {
+                                  final int? targetId = widget.userData.id;
+                                  if (targetId == null || targetId == 0) return;
+                                  context.popRoute();
+                                  Methods().userProfileNavigator(
+                                    context: context,
+                                    user_: const UserEntity(),
+                                    comesFromRoom: true,
+                                    userId: targetId.toString(),
+                                  );
+                                },
+                                child: UserImage(
+                                  image: widget.userData.image ?? '',
+                                  displayName: widget.userData.name ?? '',
+                                  imageSize: 80,
+                                  frame: widget.userData.frame,
+                                  frameType: widget.userData.frameType,
+                                  frameSize: 125,
+                                ),
+                              ),
+                              Expanded(
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Padding(
+                                    padding: EdgeInsets.only(right: 12.w),
+                                    child: RoomProfileCpPill(
+                                        extra: extraState.extraProfileData),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         10.hBox,
-                        GradientTextVip(
-                          width: 150.w,
-                          isVip: widget.userData.vipColorName != null &&
-                              (widget.userData.vipColorName ?? '')
-                                  .startsWith('#'),
-                          text: widget.userData.name ?? '',
-                          color: Methods.safeHexColor(
-                                  widget.userData.vipColorName) ??
-                              ColorManager.blackColor,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          textAlign: TextAlign.center,
-                          textStyle: context.bodyMedium.w500.size(18).colorExt(
-                              Methods.safeHexColor(
-                                      widget.userData.vipColorName) ??
-                                  ColorManager.blackColor),
+                        // Name: bigger, painted with a multi-colour gradient.
+                        ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: 280.w),
+                          child: ShaderMask(
+                            blendMode: BlendMode.srcIn,
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [
+                                Color(0xFFFFB347),
+                                Color(0xFFFF3D8B),
+                                Color(0xFFA044FF),
+                              ],
+                            ).createShader(bounds),
+                            child: Text(
+                              widget.userData.name ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24.sp,
+                                fontWeight: FontWeight.w700,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ),
                         ),
                         5.hBox,
                         Row(
@@ -470,6 +519,16 @@ class _NewProfileBodyState extends State<NewProfileBody> {
                             );
                           },
                         ),
+                        // SVIP / total gifts / family / agency cards.
+                        BlocBuilder<FetchExtraDataBloc, FetchExtraDataStates>(
+                          bloc: _fetchExtraDataBloc,
+                          buildWhen: (prev, curr) =>
+                              prev.extraProfileData != curr.extraProfileData,
+                          builder: (context, extraState) => RoomProfileCards(
+                            user: widget.userData,
+                            extra: extraState.extraProfileData,
+                          ),
+                        ),
                         Padding(
                           padding: context.paddingSymmetric(
                             horizontal: 20.w,
@@ -492,13 +551,13 @@ class _NewProfileBodyState extends State<NewProfileBody> {
                                           ) ?? 0,
                                         ),
                                         style: context.bodyMedium.bold
-                                            .colorExt(ColorManager.momentPostTextColor),
+                                            .colorExt(textColor),
                                       ),
                                       5.hBox,
                                       TextWidget(
                                         StringManager.received.tr(),
                                         style: context.bodySmall
-                                            .colorExt(ColorManager.momentPostTextColor),
+                                            .colorExt(textColor),
                                       ),
                                     ],
                                   ),
@@ -509,13 +568,13 @@ class _NewProfileBodyState extends State<NewProfileBody> {
                                                 ?.toString() ??
                                             '0',
                                         style: context.bodyMedium.bold
-                                            .colorExt(ColorManager.momentPostTextColor),
+                                            .colorExt(textColor),
                                       ),
                                       5.hBox,
                                       TextWidget(
                                         StringManager.followers.tr(),
                                         style: context.bodySmall
-                                            .colorExt(ColorManager.momentPostTextColor),
+                                            .colorExt(textColor),
                                       ),
                                     ],
                                   ),
@@ -526,20 +585,21 @@ class _NewProfileBodyState extends State<NewProfileBody> {
                                                 ?.toString() ??
                                             '0',
                                         style: context.bodyMedium.bold
-                                            .colorExt(ColorManager.momentPostTextColor),
+                                            .colorExt(textColor),
                                       ),
                                       5.hBox,
                                       TextWidget(
                                         StringManager.followings.tr(),
                                         style: context.bodySmall
-                                            .colorExt(ColorManager.momentPostTextColor),
+                                            .colorExt(textColor),
                                       ),
                                     ],
                                   ),
                                 ],
                               ),
                               10.hBox,
-                              if (widget.userData.myAgency != null &&
+                              if (RoomProfileCards.showGroupCards &&
+                                  widget.userData.myAgency != null &&
                                   widget.userData.myAgency?.id != null &&
                                   widget.userData.myAgency?.id != 0)
                                 Container(
@@ -645,6 +705,7 @@ class _NewProfileBodyState extends State<NewProfileBody> {
                                       MyDataModel.getInstance().id)
                                     ProfileButtomWidget(
                                       context: context,
+                                      textColor: textColor,
                                       title: StringManager.gift.tr(),
                                       onTap: () {
                                         Navigator.pop(context);
@@ -674,6 +735,7 @@ class _NewProfileBodyState extends State<NewProfileBody> {
                                       MyDataModel.getInstance().id)
                                     ProfileButtomWidget(
                                       context: context,
+                                      textColor: textColor,
                                       title: StringManager.profile.tr(),
                                       onTap: () {
                                         final int? targetId = widget.userData.id;
@@ -692,6 +754,7 @@ class _NewProfileBodyState extends State<NewProfileBody> {
                                       MyDataModel.getInstance().id)
                                     ProfileButtomWidget(
                                       context: context,
+                                      textColor: textColor,
                                       title: "Ta@",
                                       onTap: () {
                                         String name = widget.userData.name
@@ -711,6 +774,7 @@ class _NewProfileBodyState extends State<NewProfileBody> {
                                       MyDataModel.getInstance().id)
                                     ProfileButtomWidget(
                                       context: context,
+                                      textColor: textColor,
                                       title: StringManager.message.tr(),
                                       onTap: () {
                                         di<FetchUsersChatBloc>().add(
@@ -765,6 +829,7 @@ class _NewProfileBodyState extends State<NewProfileBody> {
                                         10.wBox,
                                         ProfileButtomWidget(
                                           context: context,
+                                          textColor: textColor,
                                           title:
                                               StringManager.leaveSeat.tr(),
                                           onTap: () async {
@@ -851,6 +916,7 @@ Widget ProfileButtomWidget(
     {required BuildContext context,
     required String title,
     int? size,
+    Color? textColor,
     required VoidCallback onTap,
     required String image}) {
   return GestureDetector(
@@ -866,7 +932,8 @@ Widget ProfileButtomWidget(
         5.hBox,
         Text(
           title,
-          style: context.bodySmall.colorExt(ColorManager.momentPostTextColor),
+          style: context.bodySmall
+              .colorExt(textColor ?? ColorManager.momentPostTextColor),
         ),
       ],
     ),

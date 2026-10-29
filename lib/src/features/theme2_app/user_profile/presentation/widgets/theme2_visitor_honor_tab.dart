@@ -1,4 +1,5 @@
 import 'package:general/src/core/index.dart';
+import 'package:general/src/features/theme2_app/user_profile/presentation/widgets/profile_frame_painter.dart';
 import 'package:general/src/features/profile/presentation/medals/bloc/badge_bloc/badges_bloc.dart';
 import 'package:general/src/features/profile/presentation/profile/bloc/bloc_badge/user_badges_bloc.dart';
 import 'package:general/src/features/profile/presentation/profile/view/page/user_profile/bloc/get_user_intro_bloc/get_user_intro_bloc.dart';
@@ -32,7 +33,7 @@ class Theme2VisitorHonorTab extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       // Left/right gap reduced further still on request.
-      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 12.h),
+      padding: EdgeInsets.fromLTRB(2.w, 0, 2.w, 12.h),
       children: [
         // Sent-gifts section — badges removed from profile per product
         // decision (the feature still exists elsewhere).
@@ -49,51 +50,26 @@ class Theme2VisitorHonorTab extends StatelessWidget {
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.only(top: 8.h),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                crossAxisSpacing: 8.w,
-                mainAxisSpacing: 8.h,
-                // Taller than 1:1 now that each cell shows the icon PLUS
-                // both a name and a count line underneath it.
-                childAspectRatio: 0.75,
+                crossAxisCount: 3,
+                crossAxisSpacing: 10.w,
+                mainAxisSpacing: 10.h,
+                childAspectRatio: 0.92,
               ),
-              itemCount: gifts.length > 8 ? 8 : gifts.length,
+              itemCount: gifts.length > 9 ? 9 : gifts.length,
               itemBuilder: (context, index) {
                 final gift = gifts[index];
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // `img` is the animated .svga send-effect, not a
-                    // displayable static image — it never rendered here.
-                    // `show_img` is the static thumbnail meant for exactly
-                    // this kind of grid.
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10.r),
-                      child: ImageViewWidget(
-                        url: EndPoints.getImage(gift.data.showImg),
-                        height: 50.h,
-                        width: 50.h,
-                        boxFit: BoxFit.cover,
-                      ),
-                    ),
-                    4.hBox,
-                    if (gift.data.name.isNotEmpty)
-                      Text(
-                        gift.data.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 11.sp,
-                            fontWeight: FontWeight.w600,
-                            color: ColorManager.black),
-                      ),
-                    if (gift.num.isNotEmpty)
-                      Text('x${gift.num}',
-                          style: TextStyle(
-                              fontSize: 11.sp,
-                              fontWeight: FontWeight.w700,
-                              color: ColorManager.black)),
-                  ],
+                return _FramedCard(
+                  // `img` is the animated .svga send-effect; `show_img` is
+                  // the static thumbnail meant for a grid like this.
+                  picture: ImageViewWidget(
+                    url: EndPoints.getImage(gift.data.showImg),
+                    boxFit: BoxFit.contain,
+                    width: double.infinity,
+                  ),
+                  line1: gift.num.isNotEmpty ? 'x${gift.num}' : '',
+                  line2: gift.data.name,
                 );
               },
             );
@@ -122,62 +98,29 @@ class Theme2VisitorHonorTab extends StatelessWidget {
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              // 4 square-ish cards per row, matching the reference layout
-              // (was 2 wide landscape banners).
+              padding: EdgeInsets.only(top: 8.h),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                crossAxisSpacing: 8.w,
-                mainAxisSpacing: 8.h,
-                childAspectRatio: 0.8,
+                crossAxisCount: 3,
+                crossAxisSpacing: 10.w,
+                mainAxisSpacing: 10.h,
+                childAspectRatio: 0.92,
               ),
               itemCount: intros.length,
               itemBuilder: (context, index) {
                 final intro = intros[index];
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AspectRatio(
-                      aspectRatio: 1,
-                      child: Container(
-                        // Subtle light gradient behind each card, on request
-                        // (was fully transparent/card-free).
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10.r),
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFFF3E9FF),
-                              Color(0xFFE6E0FF),
-                            ],
-                          ),
+                return _FramedCard(
+                  picture: intro.image.contains('.svga')
+                      ? CacheSvgaWidget(
+                          url: EndPoints.getImage(intro.image),
+                          boxFit: BoxFit.contain,
+                        )
+                      : ImageViewWidget(
+                          url: EndPoints.getImage(intro.image),
+                          boxFit: BoxFit.contain,
+                          width: double.infinity,
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10.r),
-                          child: (intro.image).contains('.svga')
-                              ? CacheSvgaWidget(
-                            url: EndPoints.getImage(intro.image),
-                            boxFit: BoxFit.cover,
-                          )
-                              : ImageViewWidget(
-                            url: EndPoints.getImage(intro.image),
-                            boxFit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    ),
-                    4.hBox,
-                    // The reference shows a star-rarity row here instead of
-                    // a count -- the backend doesn't send a rarity field for
-                    // these yet (only `count`), so this stays the owned
-                    // count until that's added.
-                    if (intro.count > 0)
-                      Text('x${intro.count}',
-                          style: TextStyle(
-                              fontSize: 11.sp,
-                              fontWeight: FontWeight.w700,
-                              color: ColorManager.black)),
-                  ],
+                  line1: '',
+                  line2: intro.count > 0 ? 'x${intro.count}' : '',
                 );
               },
             );
@@ -226,5 +169,60 @@ class _EmptySection extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+/// Card with a double border (a thin outer line and a rounded inner line) and
+/// a small fan-shaped mark in each of the four corners, the picture in the
+/// middle, a muted line and a bold line of text underneath.
+class _FramedCard extends StatelessWidget {
+  final Widget picture;
+  final String line1;
+  final String line2;
+
+  const _FramedCard({
+    required this.picture,
+    required this.line1,
+    required this.line2,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, c) {
+      final w = c.maxWidth;
+      final pad = w * 0.11;
+      return CustomPaint(
+        painter: const ProfileFramePainter(),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(pad, pad * 0.9, pad, pad * 0.7),
+          child: Column(
+            children: [
+              Expanded(child: picture),
+              SizedBox(height: 3.h),
+              if (line1.isNotEmpty)
+                Text(
+                  line1,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF9A8BC9),
+                  ),
+                ),
+              if (line2.isNotEmpty)
+                Text(
+                  line2,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF3B2A6B),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 }

@@ -479,8 +479,20 @@ class _PopularBody extends StatelessWidget {
     required this.stickyTabController,
   });
 
+  /// Selected country in the country row; null means Popular (no filter).
+  static int? get _selectedCountryId =>
+      di<CountriesBloc>().state.countryEntity?.id;
+
   void _handlePagination() {
     final state = bloc.state;
+    // The country row replaced the Recommend/Stream/Friends sub-tabs.
+    final countryId = _selectedCountryId;
+    if (countryId != null) {
+      if (state.filterLastPage > state.filterCurrentPage) {
+        bloc.add(FilterPopularRoomsEvent(isLoading: false, countryId: countryId));
+      }
+      return;
+    }
     final index = stickyTabController.index;
     final friendsIndex = ConstantsManager.isShowLive ? 2 : 1;
     final multiPkIndex = ConstantsManager.isShowLive ? 3 : 2;
@@ -566,7 +578,11 @@ class _PopularBody extends StatelessWidget {
           di<FetchTopUserImageBloc>().add(const FetchTopUserImageEvent());
           di<GetCarouselBloc>()
               .add(const GetHomeTopCarouselEvent(isLoading: false));
-          if (index == 0) {
+          final countryId = _selectedCountryId;
+          if (countryId != null) {
+            bloc.add(FilterPopularRoomsEvent(
+                isLoading: false, countryId: countryId, isFirstPage: true));
+          } else if (index == 0) {
             Methods.printLog("RECOMMEND");
             bloc.add(const FetchPopularRoomsEvent(
                 isPopularLoading: false, isFirstPage: true));
@@ -621,97 +637,72 @@ class _PopularBody extends StatelessWidget {
             SliverPersistentHeader(
               pinned: true,
               delegate: _StickyTabBarDelegate(
-                child: _StickyTabBarBody(controller: stickyTabController),
+                // Country row (user's country, Popular, then the rest) in
+                // place of the Recommend/Stream/Friends/Multi-PK pills.
+                child: const CountriesBody(),
               ),
             ),
           ],
           body: Column(
             children: [
               Expanded(
-                child: TabBarView(
-                  controller: stickyTabController,
-                  clipBehavior: Clip.none,
-                  children: [
-                    BlocBuilder<HomeBloc, HomeState>(
-                      bloc: bloc,
-                      buildWhen: (prev, curr) =>
-                      prev.popular != curr.popular ||
-                          prev.reqStatePopular != curr.reqStatePopular ||
-                          prev.isPaginatingPopular != curr.isPaginatingPopular,
-                      builder: (context, state) => _RoomsWithCarouselGrid(
-                        key: const ValueKey("recommend-key"),
-                        rooms: state.popular,
-                        reqState: state.reqStatePopular,
-                        scrollable: true,
-                        isPaginating: state.isPaginatingPopular,
-                        onTap: () {
-                          bloc.add(const FetchPopularRoomsEvent(
-                              isFirstPage: true));
-                          di<GetCarouselBloc>().add(
-                              const GetHomeTopCarouselEvent(
-                                  isLoading: false));
-                          di<GetCarouselBloc>().add(
-                              const GetHomeMiddleCarouselEvent(
-                                  isLoading: false));
-                        },
-                      ),
-                    ),
-                    if (ConstantsManager.isShowLive)
-                      const SizedBox.shrink(),
-                    BlocBuilder<HomeBloc, HomeState>(
-                      bloc: bloc,
-                      buildWhen: (prev, curr) =>
-                      prev.friends != curr.friends ||
-                          prev.reqStateFriends != curr.reqStateFriends ||
-                          prev.isPaginatingFriends != curr.isPaginatingFriends,
-                      builder: (context, state) => _RoomsWithCarouselGrid(
-                        key: const ValueKey("friends-key"),
-                        rooms: state.friends,
-                        reqState: state.reqStateFriends,
-                        scrollable: true,
-                        isPaginating: state.isPaginatingFriends,
-                        onTap: () {
-                          bloc.add(const FetchFriendsRoomsEvent(
-                              isFirstPage: true));
-                          di<GetCarouselBloc>().add(
-                              const GetHomeTopCarouselEvent(
-                                  isLoading: false));
-                          di<GetCarouselBloc>().add(
-                              const GetHomeMiddleCarouselEvent(
-                                  isLoading: false));
-                        },
-                      ),
-                    ),
-                    BlocBuilder<HomeBloc, HomeState>(
-                      bloc: bloc,
-                      buildWhen: (prev, curr) =>
-                      prev.popularPK != curr.popularPK ||
-                          prev.reqStatePopular != curr.reqStatePopular ||
-                          prev.isPaginatingPopular != curr.isPaginatingPopular,
-                      builder: (context, state) => _RoomsWithCarouselGrid(
-                        key: const ValueKey("multi-pk-key"),
-                        rooms: state.popularPK,
-                        reqState: state.reqStatePopular,
-                        scrollable: true,
-                        isPaginating: state.isPaginatingPopular,
-                        onTap: () {
-                          bloc.add(const FetchPopularRoomsEvent(
-                              isFirstPage: true));
-                          di<GetCarouselBloc>().add(
-                              const GetHomeTopCarouselEvent(
-                                  isLoading: false));
-                          di<GetCarouselBloc>().add(
-                              const GetHomeMiddleCarouselEvent(
-                                  isLoading: false));
-                        },
-                      ),
-                    ),
-                  ],
+                child: BlocBuilder<CountriesBloc, CountriesState>(
+                  bloc: di<CountriesBloc>(),
+                  buildWhen: (prev, curr) =>
+                      prev.countryEntity?.id != curr.countryEntity?.id,
+                  builder: (context, countryState) {
+                    final countryId = countryState.countryEntity?.id;
+                    if (countryId != null) {
+                      return BlocBuilder<HomeBloc, HomeState>(
+                        bloc: bloc,
+                        buildWhen: (prev, curr) =>
+                            prev.filteredRooms != curr.filteredRooms ||
+                            prev.reqStateFilter != curr.reqStateFilter ||
+                            prev.isPaginatingFilter != curr.isPaginatingFilter,
+                        builder: (context, state) => _RoomsWithCarouselGrid(
+                          key: ValueKey('country-$countryId'),
+                          rooms: state.filteredRooms,
+                          reqState: state.reqStateFilter,
+                          scrollable: true,
+                          type: 'country',
+                          isPaginating: state.isPaginatingFilter,
+                          onTap: () => bloc.add(FilterPopularRoomsEvent(
+                              countryId: countryId, isFirstPage: true)),
+                        ),
+                      );
+                    }
+                    return _popularRooms();
+                  },
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Popular rooms — shown when no country is selected in the row.
+  Widget _popularRooms() {
+    return BlocBuilder<HomeBloc, HomeState>(
+      bloc: bloc,
+      buildWhen: (prev, curr) =>
+          prev.popular != curr.popular ||
+          prev.reqStatePopular != curr.reqStatePopular ||
+          prev.isPaginatingPopular != curr.isPaginatingPopular,
+      builder: (context, state) => _RoomsWithCarouselGrid(
+        key: const ValueKey("recommend-key"),
+        rooms: state.popular,
+        reqState: state.reqStatePopular,
+        scrollable: true,
+        isPaginating: state.isPaginatingPopular,
+        onTap: () {
+          bloc.add(const FetchPopularRoomsEvent(isFirstPage: true));
+          di<GetCarouselBloc>()
+              .add(const GetHomeTopCarouselEvent(isLoading: false));
+          di<GetCarouselBloc>()
+              .add(const GetHomeMiddleCarouselEvent(isLoading: false));
+        },
       ),
     );
   }
@@ -1344,25 +1335,10 @@ class _RoomsWithCarouselGrid extends StatelessWidget {
     this.isPaginating = false,
   });
 
-  // Cache grid delegates to avoid recreation
-  static final _firstGridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
-    crossAxisCount: 2,
-    mainAxisSpacing: 10.h,
-    crossAxisSpacing: 4.w,
-    childAspectRatio: 0.85,
-  );
-
-  static final _secondGridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
-    crossAxisCount: 2,
-    mainAxisSpacing: 10.h,
-    crossAxisSpacing: 10.w,
-    childAspectRatio: 0.85,
-  );
-
   @override
   Widget build(BuildContext context) {
     final count = rooms.length;
-    const firstGridCount = 4;
+    const firstGridCount = 3;
     final firstItemCount = count >= firstGridCount ? firstGridCount : count;
     final secondItemCount = count > firstGridCount ? count - firstGridCount : 0;
 
@@ -1402,52 +1378,48 @@ class _RoomsWithCarouselGrid extends StatelessWidget {
                 ),
               ),
 
-            // First grid (top 4 rooms with SVGA)
+            // im party layout: the top room big on the left, the next two
+            // stacked on the right, then every other room as a list row.
             if (firstItemCount > 0 && reqState.isLoaded)
-              SliverPadding(
-                padding: context.paddingSymmetric(horizontal: 10),
-                sliver: SliverGrid.builder(
-                  itemCount: firstItemCount,
-                  gridDelegate: _firstGridDelegate,
-                  itemBuilder: (context, index) {
-                    final room = rooms[index];
-                    return RepaintBoundary(
-                      child: RoomCardBody(
-                        key: ValueKey('audio_room_${room.id}'),
-                        data: room,
-                        isLoading: isLoaded,
-                        isShowSVGA: true,
-                        rank: index + 1,
-                      ),
-                    );
-                  },
+              SliverToBoxAdapter(
+                child: TopThreeRoomBody(
+                  rooms: rooms.take(firstItemCount).toList(),
                 ),
               ),
 
             if (reqState.isLoading) SliverToBoxAdapter(child: 10.hBox),
 
-            // Carousel hidden on theme1, on request -- only the room/live
-            // list itself should show here.
-
-            // Gap above the plain (non-framed) cards below the top-4
-            // framed grid, on request.
             if (firstItemCount > 0 && secondItemCount > 0)
-              SliverToBoxAdapter(child: 14.hBox),
+              SliverToBoxAdapter(child: 10.hBox),
 
-            // Second grid (remaining rooms - lazily built)
             if (secondItemCount > 0)
               SliverPadding(
-                padding: context.paddingSymmetric(horizontal: 10),
-                sliver: SliverGrid.builder(
+                padding: context.paddingOnly(bottom: 70),
+                sliver: SliverList.separated(
                   itemCount: secondItemCount,
-                  gridDelegate: _secondGridDelegate,
+                  separatorBuilder: (context, index) => 10.hBox,
                   itemBuilder: (context, index) {
-                    final room = rooms[index + firstGridCount];
+                    final roomIndex = index + firstGridCount;
+                    final room = rooms[roomIndex];
                     return RepaintBoundary(
-                      child: RoomCardBody(
-                        key: ValueKey('audio_room_${room.id}'),
-                        data: room,
-                        isLoading: isLoaded,
+                      key: ValueKey('audio_room_${room.id}'),
+                      child: MultiTapCard(
+                        onTap: () {
+                          if (isLoaded) {
+                            di<RoomStateManager>().navigateToRoom(
+                              RoomEntryRequest(
+                                context: context,
+                                roomData: room,
+                                isLive: room.streamType == "live",
+                              ),
+                            );
+                          }
+                        },
+                        child: CardLiveWidget(
+                          roomEntity: room,
+                          index: roomIndex,
+                          forceBlackText: true,
+                        ),
                       ),
                     );
                   },

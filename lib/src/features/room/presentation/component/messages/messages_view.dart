@@ -649,23 +649,115 @@ class _RoomChatImage extends StatelessWidget {
             style: context.bodyMedium.size(fontSize).colorExt(nameColor),
           ),
         4.hBox,
-        // No tap-to-enlarge: Routes.fullScreenImage is declared but has no case
-        // in the router and no callers, so wiring it would be a tap that does
-        // nothing. The inline size below is chosen to be readable on its own.
-        ClipRRect(
-          borderRadius: 8.radius,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 180.w,
-              maxHeight: 180.w,
-            ),
-            child: ImageViewWidget(
-              url: url,
-              boxFit: BoxFit.cover,
+        // Tap opens the picture full screen with pinch-to-zoom.
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: url.isEmpty
+              ? null
+              : () => Navigator.of(context, rootNavigator: true).push(
+                    PageRouteBuilder(
+                      opaque: false,
+                      barrierColor: Colors.black,
+                      pageBuilder: (_, __, ___) =>
+                          _RoomChatImageViewer(url: url),
+                      transitionsBuilder: (_, animation, __, child) =>
+                          FadeTransition(opacity: animation, child: child),
+                    ),
+                  ),
+          child: ClipRRect(
+            borderRadius: 8.radius,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 180.w,
+                maxHeight: 180.w,
+              ),
+              child: ImageViewWidget(
+                url: url,
+                boxFit: BoxFit.cover,
+              ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Full-screen room chat picture: pinch or double-tap to zoom, tap the close
+/// button or press back to leave.
+class _RoomChatImageViewer extends StatefulWidget {
+  const _RoomChatImageViewer({required this.url});
+
+  final String url;
+
+  @override
+  State<_RoomChatImageViewer> createState() => _RoomChatImageViewerState();
+}
+
+class _RoomChatImageViewerState extends State<_RoomChatImageViewer> {
+  final _controller = TransformationController();
+  TapDownDetails? _doubleTapDetails;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _toggleZoom() {
+    if (_controller.value.getMaxScaleOnAxis() > 1) {
+      _controller.value = Matrix4.identity();
+      return;
+    }
+    final pos = _doubleTapDetails?.localPosition ?? Offset.zero;
+    const scale = 2.5;
+    _controller.value = Matrix4.identity()
+      ..translate(-pos.dx * (scale - 1), -pos.dy * (scale - 1))
+      ..scale(scale);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onDoubleTapDown: (d) => _doubleTapDetails = d,
+              onDoubleTap: _toggleZoom,
+              child: InteractiveViewer(
+                transformationController: _controller,
+                minScale: 1,
+                maxScale: 5,
+                child: SizedBox(
+                  width: size.width,
+                  height: size.height,
+                  child: ImageViewWidget(
+                    url: widget.url,
+                    width: size.width,
+                    height: size.height,
+                    boxFit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          PositionedDirectional(
+            top: MediaQuery.paddingOf(context).top + 8,
+            end: 12,
+            child: Material(
+              color: Colors.black54,
+              shape: const CircleBorder(),
+              child: IconButton(
+                icon: const Icon(Icons.close_rounded, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

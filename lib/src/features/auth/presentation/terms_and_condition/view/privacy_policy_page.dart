@@ -68,7 +68,7 @@ class PrivacyPolicyPage extends StatelessWidget {
 /// Play Store checks that your Data Safety form and policy text agree.
 const String _defaultPrivacyPolicyHtml = '''
 <h2>Privacy Policy — Hello Party</h2>
-<p><b>Effective date:</b> October 05, 2026<br/>
+<p><b>Effective date:</b> October 29, 2026<br/>
 <b>Website:</b> https://hello.im143.com<br/>
 <b>Contact:</b> help24imran@gmail.com</p>
 

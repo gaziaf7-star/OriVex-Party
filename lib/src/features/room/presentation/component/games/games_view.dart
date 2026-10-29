@@ -379,11 +379,13 @@ class _GamesViewState extends State<GamesView>
             'name=${game.name} baishunGameId=$baishunGameId',
       );
 
-      final Map<String, dynamic>? session = await _createBaishunSession(
+      final Map<String, dynamic>? session = await _createBaishunSessionPreferFull(
         gameId: baishunGameId,
         roomId: activeRoomId,
         token: token,
       );
+      // Mode the session was actually created with ('3' full, '2' half).
+      final String gameMode = session?['_game_mode']?.toString() ?? '2';
 
       if (!mounted) return;
 
@@ -428,6 +430,7 @@ class _GamesViewState extends State<GamesView>
           launchUrl: launchUrl,
           getConfig: getConfig,
           gameName: game.name ?? 'Game',
+          gameMode: gameMode,
         );
       } finally {
         ForegroundWidget.openGames.value = false;
@@ -582,10 +585,45 @@ class _GamesViewState extends State<GamesView>
     return '';
   }
 
+  /// Baishun game modes: '2' = half screen (showroom), '3' = full screen.
+  /// Ask for full screen first so the game fills the sheet; if the server
+  /// rejects that mode for this game (4xx), fall back to the half-screen one
+  /// that always worked.
+  Future<Map<String, dynamic>?> _createBaishunSessionPreferFull({
+    required int gameId,
+    required String roomId,
+    required String token,
+  }) async {
+    try {
+      final Map<String, dynamic>? full = await _createBaishunSession(
+        gameId: gameId,
+        roomId: roomId,
+        token: token,
+        gameMode: '3',
+      );
+      if (full != null) full['_game_mode'] = '3';
+      return full;
+    } on DioException catch (e) {
+      final int code = e.response?.statusCode ?? 0;
+      if (code < 400 || code >= 500 || code == 401) rethrow;
+      Methods.printLog('⚠️ BAISHUN full-screen session rejected ($code), '
+          'falling back to half screen');
+      final Map<String, dynamic>? half = await _createBaishunSession(
+        gameId: gameId,
+        roomId: roomId,
+        token: token,
+        gameMode: '2',
+      );
+      if (half != null) half['_game_mode'] = '2';
+      return half;
+    }
+  }
+
   Future<Map<String, dynamic>?> _createBaishunSession({
     required int gameId,
     required String roomId,
     required String token,
+    required String gameMode,
   }) async {
     final Dio dio = Dio(
       BaseOptions(
@@ -601,7 +639,7 @@ class _GamesViewState extends State<GamesView>
     final String url = '${EndPoints.baseURL}/baishun/sessions';
 
     Methods.printLog(
-      '🎮 BAISHUN SESSION REQUEST => game=$gameId room=$roomId mode=2 url=$url',
+      '🎮 BAISHUN SESSION REQUEST => game=$gameId room=$roomId mode=$gameMode url=$url',
     );
 
     final Response<dynamic> response = await dio.post<dynamic>(
@@ -609,9 +647,9 @@ class _GamesViewState extends State<GamesView>
       data: <String, dynamic>{
         'game_id': gameId,
         'room_id': roomId,
-        // Live-room player is a bottom-sheet player, so create the provider
-        // session itself in Baishun showroom/half-screen mode.
-        'game_mode': '2',
+        // '3' = full screen, '2' = half screen / showroom ('1' is rejected by
+        // the server with a 422).
+        'game_mode': gameMode,
         'language': '2',
         'scene_mode': 0,
       },
@@ -733,6 +771,7 @@ Future<void> _showSameBaishunHalfScreen({
   required String launchUrl,
   required Map<String, dynamic> getConfig,
   required String gameName,
+  String gameMode = '2',
 }) async {
   await showModalBottomSheet<void>(
     context: context,
@@ -745,8 +784,11 @@ Future<void> _showSameBaishunHalfScreen({
     barrierColor: Colors.transparent,
     builder: (BuildContext sheetContext) {
       final MediaQueryData mediaQuery = MediaQuery.of(sheetContext);
-      final double gameHeight =
-      _calculateSameBaishunHalfScreenHeight(mediaQuery);
+      // Full-screen mode: a tall sheet, a little short of the whole screen so
+      // the room still shows above it. Half-screen: Baishun's own sizing.
+      final double gameHeight = gameMode == '3'
+          ? (mediaQuery.size.height - mediaQuery.padding.top) * 0.72
+          : _calculateSameBaishunHalfScreenHeight(mediaQuery);
       final double bottomSafeArea = mediaQuery.padding.bottom;
 
       Methods.printLog(
@@ -763,6 +805,7 @@ Future<void> _showSameBaishunHalfScreen({
             launchUrl: launchUrl,
             getConfig: getConfig,
             gameName: gameName,
+            gameMode: gameMode,
           ),
         ),
       );
@@ -775,11 +818,13 @@ class _SameBaishunBottomGameWebView extends StatefulWidget {
     required this.launchUrl,
     required this.getConfig,
     required this.gameName,
+    required this.gameMode,
   });
 
   final String launchUrl;
   final Map<String, dynamic> getConfig;
   final String gameName;
+  final String gameMode;
 
   @override
   State<_SameBaishunBottomGameWebView> createState() =>
@@ -1114,8 +1159,8 @@ class _SameBaishunBottomGameWebViewState
     final Map<String, dynamic> safeConfig =
     Map<String, dynamic>.from(widget.getConfig);
 
-    // SAME as V1 bottom-sheet mode.
-    safeConfig['gameMode'] = '2';
+    // Same mode the session was created with ('3' full, '2' half).
+    safeConfig['gameMode'] = widget.gameMode;
 
     final String configJson = jsonEncode(safeConfig);
     final String javascript = '''
@@ -1129,7 +1174,7 @@ try {
     try {
       await _webViewController.runJavaScript(javascript);
       Methods.printLog(
-        '✅ BAISHUN CONFIG SENT => mode=2 configKeys=${safeConfig.keys.toList()}',
+        '✅ BAISHUN CONFIG SENT => mode=${widget.gameMode} configKeys=${safeConfig.keys.toList()}',
       );
     } catch (e, s) {
       Methods.printLog('❌ BAISHUN CONFIG SEND ERROR => $e\n$s');

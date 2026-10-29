@@ -24,7 +24,7 @@ class CountryWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label =
-    isGlobal ? StringManager.all.tr() : (countryEntity?.name ?? '');
+    isGlobal ? StringManager.popular.tr() : (countryEntity?.name ?? '');
 
     // Design only:
     // - selected: same pink -> purple brand gradient used by the bottom-nav

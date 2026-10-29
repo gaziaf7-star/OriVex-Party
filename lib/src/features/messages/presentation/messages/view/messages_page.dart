@@ -65,7 +65,7 @@ part 'widgets/select_media_widget.dart';
 const int kMaxMessageLength = ConstantsManager.maxMessageLength;
 
 /// Actions in the 1:1 conversation overflow (⋮) menu.
-enum _ChatMenuAction { viewProfile, block, report, delete }
+enum _ChatMenuAction { viewProfile, block, report }
 
 class MessagesPage extends StatefulWidget {
   final MessagesParameter params;
@@ -231,8 +231,6 @@ class _MessagesPageState extends State<MessagesPage> with RouteAware {
             builder: (_) => ReportDialogForUsers(userId: userId),
           ),
         );
-      case _ChatMenuAction.delete:
-        _confirmClearChat();
     }
   }
 
@@ -259,31 +257,6 @@ class _MessagesPageState extends State<MessagesPage> with RouteAware {
     );
   }
 
-  void _confirmClearChat() {
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => AnimatedDialog(
-        title: StringManager.deleteChatTitle.tr(),
-        description: StringManager.deleteChatSubTitle.tr(),
-        conText: StringManager.done.tr(),
-        dialogBackgroundColor: ColorManager.white,
-        titleColor: ColorManager.momentPostTextColor,
-        descriptionColor: ColorManager.momentPostTextColor,
-        cancelTextColor: ColorManager.momentPostTextColor,
-        confirmGradientColors: ColorManager.brandGradientColors,
-        onTap: () async {
-          Navigator.pop(dialogCtx);
-          final peerId = int.tryParse(widget.params.userId) ?? 0;
-          if (peerId > 0) {
-            di<DeleteChatBloc>().add(DeleteChatEvent(userId: peerId));
-            await di<RoomsDao>().deleteRoomByPeer(peerId);
-          }
-          if (mounted) Navigator.pop(context);
-        },
-      ),
-    );
-  }
-
   Widget _chatOptionsMenu() {
     return PopupMenuButton<_ChatMenuAction>(
       // Fixed white icon (was the panel-driven iconColor) — this sits on the
@@ -301,8 +274,6 @@ class _MessagesPageState extends State<MessagesPage> with RouteAware {
             _ChatMenuAction.block, Icons.block, StringManager.blockUser.tr()),
         _chatMenuItem(_ChatMenuAction.report, Icons.flag_outlined,
             StringManager.reportUser.tr()),
-        _chatMenuItem(_ChatMenuAction.delete, Icons.delete_outline,
-            StringManager.clearConversation.tr()),
       ],
     );
   }

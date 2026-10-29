@@ -14,12 +14,14 @@ class GenderWidget extends StatelessWidget {
         horizontal: widthSize != null ? 7.w : 0,
         vertical: 1.h,
       ),
-      width: widthSize?.w,
+      // Minimum (not fixed) width so a 2-3 digit age can never overflow.
+      constraints: BoxConstraints(minWidth: widthSize?.w ?? 0),
       decoration: BoxDecoration(
         borderRadius: 12.radius,
         color: gender == 1 ? Colors.blue : Colors.pink,
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(

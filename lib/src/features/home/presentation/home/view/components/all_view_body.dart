@@ -268,6 +268,7 @@ class _AllViewBodyState extends State<_AllViewBody>
                                 child: NewRoomCardWidget(
                                   roomEntity: topThreeRooms[index],
                                   isShowSVGA: true,
+                                  rank: index + 1,
                                 ),
                               ),
                             ),

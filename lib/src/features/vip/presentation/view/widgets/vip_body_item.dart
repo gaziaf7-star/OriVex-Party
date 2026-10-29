@@ -208,6 +208,9 @@ class VipBodyItem extends StatelessWidget {
                                                 boxFit: BoxFit.fill,
                                                 height: 80,
                                                 width: 90,
+                                                dynamicImageUrls: {
+                                                  kSenderAvatarKey: MyDataModel.getInstance().profile?.image ?? '',
+                                                },
                                               )
                                                   : (vipCenterEntity
                                                   .privilgesData?[

@@ -55,8 +55,7 @@ class BuyCoinsBloc extends Bloc<BaseBuyCoinsEvent, BuyCoinsState> {
                         wantedId.replaceFirst('coin_', ''))
                     .firstOrNull;
 
-            var product = findMatch(
-                di<PurchaseService>().result?.productDetails ?? []);
+            var product = di<PurchaseService>().findProduct(wantedId);
 
 
             if (product == null) {

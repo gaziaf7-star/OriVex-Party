@@ -23,10 +23,14 @@ class VipScreen extends StatefulWidget {
 class _VipScreenState extends State<VipScreen> with TickerProviderStateMixin {
   @override
   void initState() {
-    if (di<VipCenterBloc>().state.requestState != RequestState.loaded) {
+    // Skip when already loaded or still in flight (the profile page prefetches
+    // this data before the SVIP card is tapped).
+    final vipState = di<VipCenterBloc>().state;
+    if (!vipState.requestState.isLoaded && !vipState.requestState.isLoading) {
       di<VipCenterBloc>().add(const GetVipCenterEvent());
     }
-    if (!di<VipCenterBloc>().state.requestStateVipBag.isLoaded) {
+    if (!vipState.requestStateVipBag.isLoaded &&
+        !vipState.requestStateVipBag.isLoading) {
       di<VipCenterBloc>().add(const GetVipBagEvent());
     }
     // Fetch VIP theme settings for backgrounds

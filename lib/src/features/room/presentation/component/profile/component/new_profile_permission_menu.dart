@@ -171,8 +171,8 @@ class _ProfilePermissionOptionsSheet extends StatelessWidget {
     final controller = RoomData.instance.utdController;
     final targetId = userData.id.toString();
     final onSeat = controller?.seatController.isUserOnSeat(targetId) ?? false;
-    final isTargetMuted =
-        controller?.mutedParticipants.value.contains(targetId) ?? false;
+    // "Unmute" only for a moderator mute; a self-muted user is offered "Mute".
+    final isTargetMuted = ModeratorMute.instance.isLocked(targetId);
 
     // The target can be moderated when it isn't the owner or myself, and I'm the
     // owner or an admin acting on a non-admin. The two actions are then each
@@ -284,11 +284,14 @@ class _ProfilePermissionOptionsSheet extends StatelessWidget {
       }
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10.r),
-      ),
+    // Material (not a decorated Container) so the ListTiles paint their ink
+    // on it; a colored DecoratedBox between them threw the "ListTile
+    // background color or ink splashes may be invisible" assertion on every
+    // build.
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(10.r),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: optionsWithDividers,

@@ -205,19 +205,47 @@ class MessagesRemoteDataSourceImp extends BaseMessagesRemoteDataSource {
     );
   }
 
+  // user-status is cached for 10 s (the server sends max-age=10) and
+  // simultaneous calls for the same user share one request.
+  static final Map<String, ({UserStatusEntity status, DateTime at})>
+      _statusCache = {};
+  static final Map<String, Future<UserStatusEntity>> _statusInFlight = {};
+
   @override
-  Future<UserStatusEntity> onlineUser({required userId}) async {
+  Future<UserStatusEntity> onlineUser({required userId}) {
+    final key = userId.toString();
+    final cached = _statusCache[key];
+    if (cached != null &&
+        DateTime.now().difference(cached.at).inSeconds < 10) {
+      return Future.value(cached.status);
+    }
+    return _statusInFlight[key] ??= _fetchUserStatus(userId).whenComplete(
+      () => _statusInFlight.remove(key),
+    );
+  }
+
+  Future<UserStatusEntity> _fetchUserStatus(dynamic userId) async {
     final response = await _dio.get(
       EndPoints.userOnline(userId),
     );
 
     Map<String, dynamic> jsonData = response.data;
+    // Newer server shape: {status, data:{user_id, online, last_seen_at}};
+    // older shape had the fields at the top level. Accept both.
+    final inner = jsonData['data'];
+    if (inner is Map) {
+      jsonData = Map<String, dynamic>.from(inner);
+    }
 
     final raw = jsonData['online'];
-    return UserStatusEntity(
-      online: raw is int ? raw : (int.tryParse('$raw') ?? 0),
+    final status = UserStatusEntity(
+      online: raw is int
+          ? raw
+          : (raw == true ? 1 : (int.tryParse('$raw') ?? 0)),
       lastSeen: jsonData['last_seen_at']?.toString(),
     );
+    _statusCache['$userId'] = (status: status, at: DateTime.now());
+    return status;
   }
 
   @override
@@ -228,7 +256,8 @@ class MessagesRemoteDataSourceImp extends BaseMessagesRemoteDataSource {
         .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
     final int fileSize = param.video!.lengthSync();
 
-    final String fileType = lookupMimeType(param.video!.path) ?? 'unknown';
+    final String fileType =
+        lookupMimeType(param.video!.path) ?? 'application/octet-stream';
 
     final response = await _dio.post(
       EndPoints.generateUploadChatVideoLink,
@@ -236,6 +265,7 @@ class MessagesRemoteDataSourceImp extends BaseMessagesRemoteDataSource {
         "name": fileName,
         "type": fileType,
         "size": fileSize,
+        "folder": "chat",
       },
     );
     if (response.statusCode != 200) {
@@ -253,12 +283,22 @@ class MessagesRemoteDataSourceImp extends BaseMessagesRemoteDataSource {
     SendVideoParam param,
   ) async {
     final File reel = param.video!;
-    final String fileType = lookupMimeType(reel.path) ?? 'unknown';
+    final String fileType =
+        lookupMimeType(reel.path) ?? 'application/octet-stream';
     final int fileSize = reel.lengthSync();
     final fileStream = reel.openRead();
-    //how to log them to test the endpoint on postman
 
-    final response = await _dio.put(
+    // The pre-signed URL carries its own signature: use a clean client so the
+    // app's interceptors never add `Authorization` / device headers, and give
+    // large videos a long timeout (the link is valid for 30 minutes).
+    final putDio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 30),
+      sendTimeout: const Duration(minutes: 10),
+      receiveTimeout: const Duration(minutes: 10),
+      responseType: ResponseType.plain,
+    ));
+
+    final response = await putDio.put(
       param.preSignedUrl!,
       data: fileStream,
       options: Options(headers: {

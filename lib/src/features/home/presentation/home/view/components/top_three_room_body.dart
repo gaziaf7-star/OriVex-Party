@@ -81,7 +81,7 @@ class TopThreeRoomBody extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: context.bodyLarge
-                                      .colorExt(ColorManager.onDark),
+                                      .colorExt(Colors.white),
                                 ),
                               ),
                               5.hBox,
@@ -229,7 +229,7 @@ class TopThreeRoomBody extends StatelessWidget {
                                           style: context.bodyLarge
                                               .size(12.5)
                                               .colorExt(
-                                                  ColorManager.onDark),
+                                                  Colors.white),
                                         ),
                                       ),
                                       5.hBox,
@@ -363,7 +363,7 @@ class TopThreeRoomBody extends StatelessWidget {
                                               style: context.bodyLarge
                                                   .size(12.5)
                                                   .colorExt(
-                                                      ColorManager.onDark),
+                                                      Colors.white),
                                             ),
                                           ),
                                           5.hBox,

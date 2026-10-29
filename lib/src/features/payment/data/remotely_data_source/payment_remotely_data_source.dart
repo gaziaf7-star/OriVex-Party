@@ -119,14 +119,8 @@ class PaymentRemotelyDataSource extends BasePaymentRemotelyDataSource {
         Methods.printLog("⚠️ Product query error: ${response.error?.message}");
       }
 
-      di<PurchaseService>().connection.purchaseStream.listen(
-        (detailsList) {
-          di<PurchaseService>().handlePurchaseUpdates(detailsList);
-        },
-        onError: (error) {
-          Methods.printLog("⚠️ Purchase stream error: $error");
-        },
-      );
+      // Idempotent: subscribes once, however often the coins page loads.
+      await di<PurchaseService>().init();
 
       return response;
     } on PlatformException catch (e) {

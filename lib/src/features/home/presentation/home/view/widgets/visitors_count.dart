@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:general/src/core/index.dart';
 
 class VisitorsCount extends StatelessWidget {
@@ -31,6 +33,15 @@ class VisitorsCount extends StatelessWidget {
     }
   }
 
+  /// Animated music bars in place of the static "live" icon; a caller that
+  /// passes its own [icon] keeps that image.
+  Widget _viewerIcon(Color barColor) {
+    if (icon != null) {
+      return ImageWidget(height: 14.h, width: 14.h, image: icon!);
+    }
+    return MusicBars(color: barColor);
+  }
+
   Widget _buildListView() {
     return Container(
       padding: ConstantsManager.isTheme1
@@ -48,19 +59,11 @@ class VisitorsCount extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (ConstantsManager.isTheme1 == true) ...[
-            ImageWidget(
-              height: 14.h,
-              width: 14.h,
-              image: icon ?? AssetsManager.icStartLive,
-            ),
+            _viewerIcon(ColorManager.primary),
             3.wBox,
           ],
           if (ConstantsManager.isTheme1 == false)
-            Image.asset(
-              AssetsManager.newSoundWave,
-              height: 19.h,
-              width: 19.h,
-            ),
+            MusicBars(color: ColorManager.primary),
           TextWidget(
             count,
             style: TextStyle(
@@ -91,20 +94,11 @@ class VisitorsCount extends StatelessWidget {
         child: Row(
           children: [
             if (ConstantsManager.isTheme1 == true) ...[
-              ImageWidget(
-                height: 14.h,
-                width: 14.h,
-                image: icon ?? AssetsManager.icStartLive,
-              ),
+              _viewerIcon(ColorManager.primary),
               3.wBox,
             ],
             if (ConstantsManager.isTheme1 == false)
-              Image.asset(
-                AssetsManager.newSoundWave,
-                color: ColorManager.primary,
-                height: 19.h,
-                width: 19.h,
-              ),
+              MusicBars(color: ColorManager.primary),
             TextWidget(
               count,
               style: context.bodyMedium
@@ -137,24 +131,15 @@ class VisitorsCount extends StatelessWidget {
         child: Row(
           children: [
             if (ConstantsManager.isTheme1 == true) ...[
-              ImageWidget(
-                height: 14.h,
-                width: 14.h,
-                image: icon ?? AssetsManager.icStartLive,
-              ),
+              _viewerIcon(Colors.white),
               3.wBox,
             ],
             if (ConstantsManager.isTheme1 == false)
-              Image.asset(
-                AssetsManager.newSoundWave,
-                color: ColorManager.onDark,
-                height: 19.0.h,
-                width: 19.0.h,
-              ),
+              const MusicBars(color: Colors.white),
             TextWidget(
               count,
               style: context.bodyMedium
-                  .colorExt(ColorManager.onDark)
+                  .colorExt(Colors.white)
                   .size(fontSize ?? 12)
                   .copyWith(
                     fontWeight: fontWeight ?? FontWeight.w600,
@@ -162,6 +147,73 @@ class VisitorsCount extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+/// Small animated equalizer (bouncing bars), shown next to a room's viewer
+/// count so an audio room reads as "playing".
+class MusicBars extends StatefulWidget {
+  final Color color;
+  final double? size;
+
+  const MusicBars({super.key, this.color = Colors.white, this.size});
+
+  @override
+  State<MusicBars> createState() => _MusicBarsState();
+}
+
+class _MusicBarsState extends State<MusicBars>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat();
+
+  // Phase offsets so the bars move out of step.
+  static const _phases = [0.0, 0.35, 0.7, 0.15];
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = widget.size ?? 14.h;
+    final barWidth = size / 6;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (final phase in _phases)
+                Container(
+                  width: barWidth,
+                  height: size *
+                      (0.3 +
+                          0.7 *
+                              (0.5 +
+                                  0.5 *
+                                      math.sin(2 *
+                                          math.pi *
+                                          (_controller.value + phase)))),
+                  decoration: BoxDecoration(
+                    color: widget.color,
+                    borderRadius: BorderRadius.circular(barWidth),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

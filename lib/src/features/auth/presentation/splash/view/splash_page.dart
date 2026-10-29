@@ -318,7 +318,7 @@ class _SplashPageState extends State<SplashPage>
   }
 }
 
-// Plain light-pink dot scatter over the white background -- replaced the
+
 // star/sparkle/ring shapes with simple dots, on request.
 class _ImPartySplashPatternPainter extends CustomPainter {
   const _ImPartySplashPatternPainter();
